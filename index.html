@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroSpin - 低硬體需求網頁自行車訓練台程式</title>
+  <meta name="description" content="A lightweight, high-performance web cycling computer for smart trainers and BLE sensors, supporting GPX simulation and structured workouts.">
+  
+  <!-- Preconnect and Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  
+  <script type="module" crossorigin src="/biketrainer/assets/index-BhkmPwGB.js"></script>
+  <link rel="stylesheet" crossorigin href="/biketrainer/assets/index-DTGLYwDl.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="main-header">
+      <div class="logo-area">
+        <svg class="logo-icon" viewBox="0 0 24 24" width="28" height="28">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </svg>
+        <span class="logo-text">AERO<span>SPIN</span></span>
+        <span class="badge badge-low-hardware">LOW-HW ACCELERATED</span>
+      </div>
+
+      <!-- Quick Controls -->
+      <div class="header-controls">
+        <div class="control-group">
+          <label for="ftp-input">FTP (W)</label>
+          <input type="number" id="ftp-input" value="200" min="50" max="600" class="input-number">
+        </div>
+        <div class="control-group">
+          <label for="weight-input">體重 (kg)</label>
+          <input type="number" id="weight-input" value="70" min="30" max="200" class="input-number">
+        </div>
+        <div class="control-group toggle-group">
+          <span class="toggle-label">模擬模式</span>
+          <label class="switch">
+            <input type="checkbox" id="mock-mode-toggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+        <div class="control-group toggle-group">
+          <span class="toggle-label">語音引導</span>
+          <label class="switch">
+            <input type="checkbox" id="voice-assist-toggle" checked>
+            <span class="slider round"></span>
+          </label>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Layout -->
+    <main class="main-layout">
+      
+      <!-- Left Sidebar: Devices, Workouts, GPX -->
+      <aside class="sidebar">
+        
+        <!-- Tab Navigation for Sidebar -->
+        <nav class="sidebar-tabs">
+          <button class="tab-btn active" data-tab="devices">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            設備連接
+          </button>
+          <button class="tab-btn" data-tab="workouts">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-2 10H7v-2h10v2zm0-4H7V7h10v2zm0 8H7v-2h10v2z"/></svg>
+            課表訓練
+          </button>
+          <button class="tab-btn" data-tab="routes">
+            <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21.71 11.29l-9-9c-.39-.39-1.02-.39-1.41 0l-9 9c-.39.39-.39 1.02 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9c.39-.38.39-1.01 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/></svg>
+            虛擬路線
+          </button>
+        </nav>
+
+        <!-- Tab Content 1: Devices -->
+        <section class="tab-panel active" id="panel-devices">
+          <div class="panel-card">
+            <h3>藍牙感測器連接</h3>
+            <p class="panel-desc">使用 Web Bluetooth 直接連線，不需安裝任何額外驅動程式。</p>
+            
+            <div class="device-list">
+              <!-- Smart Trainer / Power Meter -->
+              <div class="device-item status-disconnected" id="dev-power">
+                <div class="device-info">
+                  <div class="device-icon-wrapper power-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M3.55 18.54l1.41 1.41 1.79-1.8-1.41-1.41-1.79 1.8zM11 22.45h2V19.5h-2v2.95zM4 10.5H1v2h3v-2zm11-6.95h-2V.6h2v2.95zm-6 0H7V.6h2v2.95zM20 10.5h-3v2h3v-2zm-4.24 6.24l1.79 1.8 1.41-1.41-1.79-1.8-1.41 1.41zM12 5.5c-3.58 0-6.5 2.92-6.5 6.5s2.92 6.5 6.5 6.5 6.5-2.92 6.5-6.5-2.92-6.5-6.5-6.5z"/></svg>
+                  </div>
+                  <div>
+                    <span class="device-title">智慧訓練台 / 功率計</span>
+                    <span class="device-status-text">未連線</span>
+                    <span class="device-compat-tip">相容 ThinkRider, Wahoo, Tacx, Garmin 等藍牙 FTMS/CPS 設備</span>
+                  </div>
+                </div>
+                <button class="btn btn-connect btn-sm" id="btn-connect-power">連線</button>
+              </div>
+
+              <!-- Heart Rate -->
+              <div class="device-item status-disconnected" id="dev-hr">
+                <div class="device-info">
+                  <div class="device-icon-wrapper hr-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                  </div>
+                  <div>
+                    <span class="device-title">心率帶</span>
+                    <span class="device-status-text">未連線</span>
+                  </div>
+                </div>
+                <button class="btn btn-connect btn-sm" id="btn-connect-hr">連線</button>
+              </div>
+
+              <!-- Cadence / Speed -->
+              <div class="device-item status-disconnected" id="dev-cadence">
+                <div class="device-info">
+                  <div class="device-icon-wrapper cadence-icon">
+                    <svg viewBox="0 0 24 24" width="20" height="20"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                  </div>
+                  <div>
+                    <span class="device-title">踏頻 / 速度感測器</span>
+                    <span class="device-status-text">未連線</span>
+                  </div>
+                </div>
+                <button class="btn btn-connect btn-sm" id="btn-connect-cadence">連線</button>
+              </div>
+            </div>
+
+            <!-- FTMS Erg mode control indicator -->
+            <div class="trainer-mode-panel hidden" id="trainer-mode-panel">
+              <h4>訓練台阻力控制 (FTMS)</h4>
+              <div class="btn-group-row">
+                <button class="btn btn-outline active" id="btn-ftms-erg">ERG 模式</button>
+                <button class="btn btn-outline" id="btn-ftms-sim">模擬模式 (SIM)</button>
+              </div>
+              <div class="erg-target-adjuster">
+                <span>目標功率: <strong id="val-ftms-target-w">--</strong> W</span>
+                <div class="adjuster-buttons">
+                  <button class="btn btn-sm btn-icon" id="btn-ftms-dec">-10W</button>
+                  <button class="btn btn-sm btn-icon" id="btn-ftms-inc">+10W</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel-card usage-tip">
+            <h4>💡 瀏覽器需求</h4>
+            <p>本系統使用 <strong>Web Bluetooth API</strong>。請使用 Google Chrome, Microsoft Edge 或 Opera 瀏覽器運行。若在模擬模式下，不需要任何實體藍牙設備即可體驗完整功能！</p>
+          </div>
+        </section>
+
+        <!-- Tab Content 2: Workouts -->
+        <section class="tab-panel" id="panel-workouts">
+          <div class="panel-card">
+            <h3>選擇訓練課表</h3>
+            <p class="panel-desc">執行以 FTP 比例設計的結構化訓練，提升您的體能。</p>
+            
+            <div class="workout-selector-container">
+              <label for="workout-preset-select">預設課表</label>
+              <select id="workout-preset-select" class="select-field">
+                <option value="ftp_test">20分鐘 FTP 測驗 (標準評估)</option>
+                <option value="sweet_spot" selected>甜區甜點心肺 (2x10分鐘 Sweet Spot)</option>
+                <option value="vo2_max">VO2 Max 爆發力訓練 (5x3分鐘 120%)</option>
+                <option value="active_recovery">主動恢復 (30分鐘 輕踩排乳酸)</option>
+                <option value="ramp_test">階梯漸進式測試 (Ramp Test)</option>
+              </select>
+            </div>
+
+            <div class="workout-file-importer">
+              <div class="file-dropzone" id="workout-file-dropzone">
+                <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM14 13v4h-4v-4H7l5-5 5 5h-3z"/></svg>
+                <span>拖放或點擊載入課表 (.mrc / .erg / .json)</span>
+                <input type="file" id="workout-file-input" accept=".mrc,.erg,.json" class="hidden-file-input">
+              </div>
+            </div>
+
+            <div class="workout-info-summary" id="workout-preview-info">
+              <h4 id="preview-workout-title">--</h4>
+              <div class="info-grid">
+                <div><span>總時間</span><strong id="preview-workout-duration">--:--</strong></div>
+                <div><span>TSS (預估)</span><strong id="preview-workout-tss">--</strong></div>
+                <div><span>IF (預估)</span><strong id="preview-workout-if">--</strong></div>
+                <div><span>最高功率</span><strong id="preview-workout-max-p">--% FTP</strong></div>
+              </div>
+              <div class="workout-timeline-preview" id="workout-timeline-preview-bar"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Tab Content 3: Routes (GPX) -->
+        <section class="tab-panel" id="panel-routes">
+          <div class="panel-card">
+            <h3>GPX 虛擬路線模擬</h3>
+            <p class="panel-desc">匯入 GPX 軌跡，系統將根據路線的坡度即時調整阻力，模擬真實路感！</p>
+            
+            <div class="gpx-file-importer">
+              <div class="file-dropzone" id="gpx-file-dropzone">
+                <svg viewBox="0 0 24 24" width="28" height="28"><path d="M19 15v4H5v-4H3v4c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2v-4h-2zM12 9l-4 4h3v6h2v-6h3l-4-4zm-2.82-3.18L12 3l2.82 2.82 1.42-1.42L12.00 0 7.76 4.24l1.42 1.42z"/></svg>
+                <span>匯入路徑檔 (.gpx)</span>
+                <input type="file" id="gpx-file-input" accept=".gpx" class="hidden-file-input">
+              </div>
+            </div>
+
+            <div class="gpx-route-info hidden" id="gpx-route-info">
+              <h4 id="gpx-route-name">陽明山冷水坑經典爬坡</h4>
+              <div class="info-grid">
+                <div><span>總距離</span><strong id="gpx-info-distance">-- km</strong></div>
+                <div><span>總爬升</span><strong id="gpx-info-ascent">-- m</strong></div>
+                <div><span>平均坡度</span><strong id="gpx-info-avg-grade">-- %</strong></div>
+                <div><span>最大坡度</span><strong id="gpx-info-max-grade">-- %</strong></div>
+              </div>
+              
+              <!-- Elevation mini profile -->
+              <div class="elevation-profile-container">
+                <canvas id="elevation-profile-canvas" height="80"></canvas>
+              </div>
+            </div>
+            
+            <!-- Default Preset Routes -->
+            <div class="preset-routes-container">
+              <label>精選路線</label>
+              <div class="route-preset-item" data-route="alpe_huez">
+                <div class="route-icon">⛰️</div>
+                <div class="route-text">
+                  <h5>阿爾卑斯經典山路 (Alpe d'Huez)</h5>
+                  <span>13.8 km | 爬升 1,061m | 平均 7.9%</span>
+                </div>
+              </div>
+              <div class="route-preset-item" data-route="flat_loop">
+                <div class="route-icon">🚴</div>
+                <div class="route-text">
+                  <h5>平坦計時賽環線 (Flat Loop)</h5>
+                  <span>10.0 km | 爬升 42m | 平均 0.2%</span>
+                </div>
+              </div>
+              <div class="route-preset-item" data-route="rolling_hills">
+                <div class="route-icon">🌳</div>
+                <div class="route-text">
+                  <h5>丘陵起伏路段 (Rolling Hills)</h5>
+                  <span>15.4 km | 爬升 280m | 平均 1.8%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </aside>
+
+      <!-- Main Display Board -->
+      <section class="display-board">
+        
+        <!-- Top Raw Stats Row -->
+        <div class="metrics-grid">
+          <!-- Power -->
+          <div class="metric-card card-power" id="metric-power-card">
+            <span class="metric-label">功率 POWER</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value font-mono" id="val-power">0</span>
+              <span class="metric-unit">W</span>
+            </div>
+            <div class="metric-footer">
+              <span>目標: <strong id="val-target-power">--</strong> W</span>
+              <span>3s平均: <strong id="val-power-3s">0</strong>W</span>
+            </div>
+            <div class="metric-zone-tag" id="power-zone-tag">Z1 - 恢復</div>
+          </div>
+
+          <!-- Cadence -->
+          <div class="metric-card card-cadence">
+            <span class="metric-label">踏頻 CADENCE</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value font-mono" id="val-cadence">0</span>
+              <span class="metric-unit">RPM</span>
+            </div>
+            <div class="metric-footer">
+              <span>平均: <strong id="val-avg-cadence">0</strong> RPM</span>
+            </div>
+            <div class="cadence-spinner-indicator" id="cadence-spinner"></div>
+          </div>
+
+          <!-- Heart Rate -->
+          <div class="metric-card card-hr" id="metric-hr-card">
+            <span class="metric-label">心率 HEART RATE</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value font-mono" id="val-hr">0</span>
+              <span class="metric-unit">BPM</span>
+            </div>
+            <div class="metric-footer">
+              <span>最高: <strong id="val-max-hr">0</strong> BPM</span>
+              <span>平均: <strong id="val-avg-hr">0</strong> BPM</span>
+            </div>
+            <div class="heart-pulse-icon" id="heart-pulse">❤️</div>
+          </div>
+
+          <!-- Speed & Progress -->
+          <div class="metric-card card-speed">
+            <span class="metric-label">時速 & 坡度 SPEED / GRADE</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value font-mono" id="val-speed">0.0</span>
+              <span class="metric-unit">km/h</span>
+            </div>
+            <div class="metric-footer">
+              <span>坡度: <strong id="val-grade">0.0</strong> %</span>
+              <span>距離: <strong id="val-distance">0.00</strong> km</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Workout Control Bar / State Banner -->
+        <div class="workout-status-bar" id="workout-status-container">
+          <div class="interval-progress">
+            <div class="interval-time-box">
+              <span class="status-label" id="interval-title-label">當前區間</span>
+              <span class="status-value font-mono" id="val-interval-time">--:--</span>
+            </div>
+            <div class="total-time-box">
+              <span class="status-label">剩餘總時間</span>
+              <span class="status-value font-mono" id="val-total-time">--:--</span>
+            </div>
+          </div>
+          <div class="interval-instruction">
+            <div id="interval-instruction-text" class="instruction-text">載入課表並點擊「開始訓練」...</div>
+            <div class="instruction-progress-bar">
+              <div class="progress-fill" id="interval-progress-fill" style="width: 0%"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visual Panel Switcher Tabs -->
+        <div class="visual-tabs">
+          <button class="vtab-btn active" data-vtab="chart">
+            <svg viewBox="0 0 24 24" width="14" height="14" style="vertical-align: middle; margin-right: 4px;"><path d="M5 9.2h3V19H5zM10.6 5h2.8v14h-2.8zm5.6 8H19v6h-2.8z" fill="currentColor"/></svg>
+            訓練即時曲線圖
+          </button>
+          <button class="vtab-btn" data-vtab="city">
+            <svg viewBox="0 0 24 24" width="14" height="14" style="vertical-align: middle; margin-right: 4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" fill="currentColor"/></svg>
+            虛擬城市景點畫面
+          </button>
+        </div>
+
+        <!-- Chart Visualization Area (Canvas) -->
+        <div class="chart-container-card visual-panel active" id="visual-panel-chart">
+          <div class="chart-header">
+            <h4>即時功率/心率曲線圖</h4>
+            <div class="chart-legend">
+              <span class="legend-item"><span class="legend-dot target-power-dot"></span>目標功率</span>
+              <span class="legend-item"><span class="legend-dot power-dot"></span>實際功率</span>
+              <span class="legend-item"><span class="legend-dot hr-dot"></span>心率</span>
+            </div>
+          </div>
+          <div class="canvas-wrapper">
+            <canvas id="workout-chart-canvas"></canvas>
+          </div>
+        </div>
+
+        <!-- Virtual City View Area (Canvas) -->
+        <div class="chart-container-card visual-panel hidden" id="visual-panel-city">
+          <div class="chart-header">
+            <h4>虛擬城市與景點模擬</h4>
+            <span class="badge badge-low-hardware" style="background: rgba(248, 87, 166, 0.2); color: #f857a6; border-color: rgba(248, 87, 166, 0.4);">2D PARALLAX ENGINE</span>
+          </div>
+          <div class="canvas-wrapper" style="position: relative; overflow: hidden; background: #04050f; min-height: 250px;">
+            <canvas id="virtual-city-canvas" style="display: block; width: 100%; height: 100%;"></canvas>
+            
+            <!-- Landmark Toast Notification Alert Overlay -->
+            <div id="attraction-toast" class="attraction-toast-card hidden">
+              <div class="toast-image-wrapper" id="toast-img-wrapper">
+                <img id="toast-img" src="" alt="scenic" class="toast-scenic-img">
+              </div>
+              <div class="toast-icon" id="toast-fallback-icon">📍</div>
+              <div class="toast-body">
+                <div class="toast-title" id="toast-title">抵達景點</div>
+                <div class="toast-desc" id="toast-desc">介紹說明</div>
+                <button class="btn-toast-view" id="btn-toast-view-large">🔍 查看景點實景</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Ride Controls -->
+        <div class="ride-controls-bar">
+          <button class="btn btn-primary btn-large" id="btn-ride-start">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M8 5v14l11-7z"/></svg>
+            開始訓練
+          </button>
+          <button class="btn btn-warning btn-large hidden" id="btn-ride-pause">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+            暫停
+          </button>
+          <button class="btn btn-danger btn-large" id="btn-ride-stop" disabled>
+            <svg viewBox="0 0 24 24" width="24" height="24"><path d="M6 6h12v12H6z"/></svg>
+            結束並儲存
+          </button>
+          <div class="ride-control-spacer"></div>
+          <button class="btn btn-outline" id="btn-workout-prev" disabled>上一個區間</button>
+          <button class="btn btn-outline" id="btn-workout-next" disabled>跳過此區間</button>
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- Scenic Photo Viewer Modal -->
+    <div class="modal-backdrop hidden" id="scenic-modal" style="z-index: 1100;">
+      <div class="modal-content card-glass" style="max-width: 600px;">
+        <div class="modal-header">
+          <h2 id="scenic-modal-title">景點實景相片</h2>
+          <button class="btn-close-modal" id="btn-close-scenic">×</button>
+        </div>
+        <div class="modal-body" style="padding: 1rem; align-items: center; text-align: center; display: flex; flex-direction: column;">
+          <img id="scenic-modal-img" src="" alt="scenic large" style="width: 100%; max-height: 350px; object-fit: cover; border-radius: 12px; border: 1.5px solid var(--border-color); box-shadow: 0 8px 24px rgba(0,0,0,0.5); margin-bottom: 1rem;">
+          <p id="scenic-modal-desc" style="font-size: 0.9rem; color: var(--text-main); line-height: 1.5; text-align: justify; padding: 0 0.5rem; margin: 0;"></p>
+        </div>
+        <div class="modal-footer" style="padding: 0.75rem 1.25rem;">
+          <button class="btn btn-outline" id="btn-close-scenic-bottom">關閉</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Modal Panel -->
+    <div class="modal-backdrop hidden" id="summary-modal">
+      <div class="modal-content card-glass">
+        <div class="modal-header">
+          <h2>🚴 訓練完工！數據統計與匯出</h2>
+          <button class="btn-close-modal" id="btn-close-summary">×</button>
+        </div>
+        
+        <div class="modal-body">
+          <div class="summary-stats-grid">
+            <div class="stat-box">
+              <span class="stat-lbl">訓練時間</span>
+              <span class="stat-val font-mono" id="sum-duration">00:00:00</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">騎乘距離</span>
+              <span class="stat-val font-mono" id="sum-distance">0.0 km</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">平均功率</span>
+              <span class="stat-val font-mono" id="sum-avg-power">0 W</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">標準化功率 (NP)</span>
+              <span class="stat-val font-mono" id="sum-np">0 W</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">訓練壓力分數 (TSS)</span>
+              <span class="stat-val font-mono" id="sum-tss">0</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">強度係數 (IF)</span>
+              <span class="stat-val font-mono" id="sum-if">0.00</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">平均心率</span>
+              <span class="stat-val font-mono" id="sum-avg-hr">0 BPM</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-lbl">消耗能量</span>
+              <span class="stat-val font-mono" id="sum-kj">0 kJ</span>
+            </div>
+          </div>
+
+          <div class="summary-details-section">
+            <div class="zone-distribution-card">
+              <h4>功率區間分布 (Zones)</h4>
+              <div class="zone-bars-container" id="zone-bars-container">
+                <!-- Dynamically filled with javascript -->
+              </div>
+            </div>
+            
+            <div class="export-options-card">
+              <h4>資料匯出</h4>
+              <p>匯出標準 TCX 格式檔案，您可以將其上傳至 <strong>Strava, Garmin Connect, TrainingPeaks, GoldenCheetah</strong> 等平台。</p>
+              <button class="btn btn-success btn-large btn-block" id="btn-export-tcx">
+                <svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align: middle; margin-right: 6px;"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                下載 TCX 訓練檔案
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline" id="btn-close-summary-bottom">關閉視窗</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>
