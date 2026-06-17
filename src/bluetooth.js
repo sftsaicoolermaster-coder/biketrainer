@@ -1,24 +1,24 @@
 // Web Bluetooth API Manager for AeroSpin
 // Connects to Heart Rate, Cycling Power, Cadence, and FTMS Smart Trainers
 
-// BLE Service & Characteristic UUIDs
+// BLE Service & Characteristic UUIDs - Using full UUIDs for better compatibility
 const UUIDS = {
   HR: {
-    service: 'heart_rate', // 0x180D
-    measurement: 'heart_rate_measurement' // 0x2A37
+    service: '0000180d-0000-1000-8000-00805f9b34fb', // Heart Rate Service
+    measurement: '00002a37-0000-1000-8000-00805f9b34fb' // Heart Rate Measurement
   },
   POWER: {
-    service: 'cycling_power', // 0x1818
-    measurement: 'cycling_power_measurement' // 0x2A63
+    service: '00001818-0000-1000-8000-00805f9b34fb', // Cycling Power Service
+    measurement: '00002a63-0000-1000-8000-00805f9b34fb' // Cycling Power Measurement
   },
   CADENCE: {
-    service: 'cycling_speed_and_cadence', // 0x1816
-    measurement: 'csc_measurement' // 0x2A5B
+    service: '00001816-0000-1000-8000-00805f9b34fb', // Cycling Speed and Cadence
+    measurement: '00002a5b-0000-1000-8000-00805f9b34fb' // CSC Measurement
   },
   FTMS: {
-    service: 'fitness_machine', // 0x1826
-    indoor_bike_data: 'indoor_bike_data', // 0x2AD2
-    control_point: 'fitness_machine_control_point' // 0x2AD9
+    service: '00001826-0000-1000-8000-00805f9b34fb', // Fitness Machine Service
+    indoor_bike_data: '00002ad2-0000-1000-8000-00805f9b34fb', // Indoor Bike Data
+    control_point: '00002ad9-0000-1000-8000-00805f9b34fb' // Fitness Machine Control Point
   }
 };
 
@@ -48,6 +48,9 @@ export class BLEManager {
     this.mockSpeed = 25.0;
     this.mockDistance = 0.0;
     this.mockGrade = 0.0;
+
+    // Check if Web Bluetooth is available
+    this.isBluetoothAvailable = 'bluetooth' in navigator;
   }
 
   // Set status helper
@@ -57,12 +60,29 @@ export class BLEManager {
     }
   }
 
+  // Check browser support
+  checkBrowserSupport() {
+    if (!this.isBluetoothAvailable) {
+      alert('您的瀏覽器不支援 Web Bluetooth API。\n請使用 Google Chrome、Microsoft Edge 或 Opera 瀏覽器。');
+      return false;
+    }
+    return true;
+  }
+
   // --- HEART RATE CONNECTION ---
   async connectHeartRate() {
+    if (!this.checkBrowserSupport()) return false;
+    
     this.setStatus('hr', 'searching');
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [UUIDS.HR.service] }]
+        filters: [
+          { services: [UUIDS.HR.service] },
+          { name: 'Polar', namePrefix: 'Polar' },
+          { name: 'Garmin', namePrefix: 'Garmin' },
+          { name: 'Wahoo', namePrefix: 'Wahoo' }
+        ],
+        optionalServices: []
       });
       
       const server = await device.gatt.connect();
@@ -70,6 +90,7 @@ export class BLEManager {
       const characteristic = await service.getCharacteristic(UUIDS.HR.measurement);
       
       this.devices.hr = device;
+      device.addEventListener('gattserverdisconnected', this.handleDisconnect.bind(this, 'hr'));
       
       characteristic.addEventListener('characteristicvaluechanged', (e) => {
         const val = e.target.value;
@@ -85,16 +106,11 @@ export class BLEManager {
       });
 
       await characteristic.startNotifications();
-      
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.hr = null;
-        this.setStatus('hr', 'disconnected');
-      });
-
       this.setStatus('hr', 'connected');
+      console.log('✅ Heart Rate Monitor connected');
       return true;
     } catch (err) {
-      console.error("BLE HR Error:", err);
+      console.error("❌ BLE HR Error:", err);
       this.setStatus('hr', 'disconnected');
       return false;
     }
@@ -102,10 +118,19 @@ export class BLEManager {
 
   // --- CYCLING POWER CONNECTION ---
   async connectPowerMeter() {
+    if (!this.checkBrowserSupport()) return false;
+    
     this.setStatus('power', 'searching');
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [UUIDS.POWER.service] }]
+        filters: [
+          { services: [UUIDS.POWER.service] },
+          { namePrefix: 'Stages' },
+          { namePrefix: 'Quarq' },
+          { namePrefix: 'SRM' },
+          { namePrefix: 'Power2Max' }
+        ],
+        optionalServices: []
       });
       
       const server = await device.gatt.connect();
@@ -113,6 +138,7 @@ export class BLEManager {
       const characteristic = await service.getCharacteristic(UUIDS.POWER.measurement);
       
       this.devices.power = device;
+      device.addEventListener('gattserverdisconnected', this.handleDisconnect.bind(this, 'power'));
       
       characteristic.addEventListener('characteristicvaluechanged', (e) => {
         const val = e.target.value;
@@ -121,16 +147,9 @@ export class BLEManager {
         
         if (this.onPowerUpdate) this.onPowerUpdate(power);
 
-        // Optional Cadence from Crank Revolution Data
-        // Bit 10 (0x0400) indicates Crank Revolution data is present
-        const hasCrankRev = flags & 0x20; // 0x20 is bit 5 in standard, or check 0x0400
-        // Wait, standard BLE Cycling Power flag:
-        // Bit 3 (0x08): Torque, Bit 4 (0x10): Wheel Rev, Bit 5 (0x20): Crank Rev.
+        // Extract Cadence from Crank Revolution Data if present
+        const hasCrankRev = flags & 0x20; // Bit 5
         if (hasCrankRev) {
-          // Calculate offset: 2 bytes flags + 2 bytes power = 4
-          // If pedal balance (bit 0 = 0x01) -> +1
-          // If torque (bit 3 = 0x08) -> +8
-          // If wheel rev (bit 4 = 0x10) -> +6
           let offset = 4;
           if (flags & 0x01) offset += 1; // Pedal Balance
           if (flags & 0x08) offset += 8; // Torque
@@ -139,23 +158,17 @@ export class BLEManager {
           if (val.byteLength >= offset + 4) {
             const crankRevs = val.getUint16(offset, true);
             const crankTime = val.getUint16(offset + 2, true);
-            
             this.calculateCadenceFromCrank(crankRevs, crankTime);
           }
         }
       });
 
       await characteristic.startNotifications();
-      
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.power = null;
-        this.setStatus('power', 'disconnected');
-      });
-
       this.setStatus('power', 'connected');
+      console.log('✅ Power Meter connected');
       return true;
     } catch (err) {
-      console.error("BLE Power Error:", err);
+      console.error("❌ BLE Power Error:", err);
       this.setStatus('power', 'disconnected');
       return false;
     }
@@ -184,10 +197,17 @@ export class BLEManager {
 
   // --- SPEED AND CADENCE CONNECTION ---
   async connectCadenceSensor() {
+    if (!this.checkBrowserSupport()) return false;
+    
     this.setStatus('cadence', 'searching');
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [UUIDS.CADENCE.service] }]
+        filters: [
+          { services: [UUIDS.CADENCE.service] },
+          { namePrefix: 'Garmin' },
+          { namePrefix: 'Wahoo' }
+        ],
+        optionalServices: []
       });
       
       const server = await device.gatt.connect();
@@ -195,17 +215,16 @@ export class BLEManager {
       const characteristic = await service.getCharacteristic(UUIDS.CADENCE.measurement);
       
       this.devices.cadence = device;
+      device.addEventListener('gattserverdisconnected', this.handleDisconnect.bind(this, 'cadence'));
       
       characteristic.addEventListener('characteristicvaluechanged', (e) => {
         const val = e.target.value;
         const flags = val.getUint8(0);
-        // Bit 0: Wheel revs, Bit 1: Crank revs
         const hasWheel = flags & 0x01;
         const hasCrank = flags & 0x02;
         
         let offset = 1;
         if (hasWheel) {
-          // 4 bytes wheel revs, 2 bytes last wheel event time
           offset += 6;
         }
         
@@ -217,16 +236,11 @@ export class BLEManager {
       });
 
       await characteristic.startNotifications();
-
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.cadence = null;
-        this.setStatus('cadence', 'disconnected');
-      });
-
       this.setStatus('cadence', 'connected');
+      console.log('✅ Cadence Sensor connected');
       return true;
     } catch (err) {
-      console.error("BLE Cadence Error:", err);
+      console.error("❌ BLE Cadence Error:", err);
       this.setStatus('cadence', 'disconnected');
       return false;
     }
@@ -234,18 +248,34 @@ export class BLEManager {
 
   // --- FTMS / SMART TRAINER CONTROL CONNECTION ---
   async connectFTMS() {
-    this.setStatus('power', 'searching'); // Shows as trainer/power connection
+    if (!this.checkBrowserSupport()) return false;
+    
+    this.setStatus('power', 'searching');
     try {
       const device = await navigator.bluetooth.requestDevice({
-        filters: [{ services: [UUIDS.FTMS.service] }]
+        filters: [
+          { services: [UUIDS.FTMS.service] },
+          { namePrefix: 'ThinkRider' },
+          { namePrefix: 'Wahoo' },
+          { namePrefix: 'KICKR' },
+          { namePrefix: 'Tacx' },
+          { namePrefix: 'Garmin' },
+          { namePrefix: 'Elite' },
+          { namePrefix: 'Wattbike' }
+        ],
+        optionalServices: [
+          UUIDS.HR.service,
+          UUIDS.POWER.service
+        ]
       });
       
       const server = await device.gatt.connect();
       const service = await server.getPrimaryService(UUIDS.FTMS.service);
       
       this.devices.ftms = device;
+      device.addEventListener('gattserverdisconnected', this.handleDisconnect.bind(this, 'ftms'));
 
-      // 1. Subscribe to Indoor Bike Data (for telemetry: Speed, Power, Cadence, HR)
+      // 1. Subscribe to Indoor Bike Data (for telemetry)
       try {
         const dataChar = await service.getCharacteristic(UUIDS.FTMS.indoor_bike_data);
         dataChar.addEventListener('characteristicvaluechanged', (e) => {
@@ -253,101 +283,116 @@ export class BLEManager {
           this.parseFTMSBikeData(val);
         });
         await dataChar.startNotifications();
+        console.log('✅ FTMS Indoor Bike Data notifications started');
       } catch (err) {
-        console.warn("FTMS data characteristic not supported or failed:", err);
+        console.warn("⚠️ FTMS data characteristic not supported:", err);
       }
 
-      // 2. Get Control Point Characteristic for writing settings (ERG/SIM)
+      // 2. Get Control Point Characteristic for writing settings
       try {
         this.characteristics.ftmsControl = await service.getCharacteristic(UUIDS.FTMS.control_point);
-        await this.characteristics.ftmsControl.startNotifications(); // required by BLE spec to get responses
+        await this.characteristics.ftmsControl.startNotifications();
         
-        // Request Control Opcode
+        // Request Control
         await this.requestFTMSControl();
+        console.log('✅ FTMS Control Point ready');
       } catch (err) {
-        console.error("FTMS control point failed:", err);
+        console.error("❌ FTMS control point failed:", err);
       }
 
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.ftms = null;
-        this.characteristics.ftmsControl = null;
-        this.setStatus('power', 'disconnected');
-      });
-
       this.setStatus('power', 'connected');
+      console.log('✅ Smart Trainer (FTMS) connected');
       return true;
     } catch (err) {
-      console.error("BLE FTMS Error:", err);
+      console.error("❌ BLE FTMS Error:", err);
       this.setStatus('power', 'disconnected');
       return false;
     }
   }
 
+  // Handle device disconnection
+  handleDisconnect(deviceKey) {
+    console.log(`⚠️ Device disconnected: ${deviceKey}`);
+    this.devices[deviceKey] = null;
+    this.setStatus(deviceKey, 'disconnected');
+    
+    if (deviceKey === 'ftms') {
+      this.characteristics.ftmsControl = null;
+    }
+  }
+
   // Parse FTMS bike metrics data
   parseFTMSBikeData(val) {
-    const flags = val.getUint16(0, true);
-    let offset = 2;
+    try {
+      const flags = val.getUint16(0, true);
+      let offset = 2;
 
-    // Bit 0: More Data (0 = present)
-    // In FTMS: Instantaneous Speed is present if Bit 0 is 0
-    if (!(flags & 0x01)) {
-      const speedRaw = val.getUint16(offset, true); // 0.01 km/h
-      const speedKmh = speedRaw / 100;
-      if (this.onSpeedUpdate) this.onSpeedUpdate(speedKmh);
-      offset += 2;
-    }
+      // Bit 0: More Data (0 = present)
+      if (!(flags & 0x01)) {
+        const speedRaw = val.getUint16(offset, true); // 0.01 km/h
+        const speedKmh = speedRaw / 100;
+        if (this.onSpeedUpdate) this.onSpeedUpdate(speedKmh);
+        offset += 2;
+      }
 
-    // Bit 2: Cadence Present
-    if (flags & 0x04) {
-      const cadenceRaw = val.getUint16(offset, true); // 0.5 RPM
-      const cadenceRpm = cadenceRaw / 2;
-      if (this.onCadenceUpdate) this.onCadenceUpdate(Math.round(cadenceRpm));
-      offset += 2;
-    }
+      // Bit 2: Cadence Present
+      if (flags & 0x04) {
+        const cadenceRaw = val.getUint16(offset, true); // 0.5 RPM
+        const cadenceRpm = cadenceRaw / 2;
+        if (this.onCadenceUpdate) this.onCadenceUpdate(Math.round(cadenceRpm));
+        offset += 2;
+      }
 
-    // Bit 4: Total Distance Present
-    if (flags & 0x10) {
-      const distanceM = val.getUint16(offset, true) + (val.getUint8(offset + 2) << 16); // 24-bit uint
-      if (this.onDistanceUpdate) this.onDistanceUpdate(distanceM / 1000); // to km
-      offset += 3;
-    }
+      // Bit 4: Total Distance Present
+      if (flags & 0x10) {
+        const distanceM = val.getUint16(offset, true) + (val.getUint8(offset + 2) << 16); // 24-bit
+        if (this.onDistanceUpdate) this.onDistanceUpdate(distanceM / 1000);
+        offset += 3;
+      }
 
-    // Bit 5: Resistance Level Present
-    if (flags & 0x20) {
-      offset += 2;
-    }
+      // Bit 5: Resistance Level Present
+      if (flags & 0x20) {
+        offset += 2;
+      }
 
-    // Bit 6: Instantaneous Power Present
-    if (flags & 0x40) {
-      const powerW = val.getInt16(offset, true);
-      if (this.onPowerUpdate) this.onPowerUpdate(powerW);
-      offset += 2;
-    }
+      // Bit 6: Instantaneous Power Present
+      if (flags & 0x40) {
+        const powerW = val.getInt16(offset, true);
+        if (this.onPowerUpdate) this.onPowerUpdate(powerW);
+        offset += 2;
+      }
 
-    // Bit 9: Heart Rate Present
-    if (flags & 0x200) {
-      const hrBpm = val.getUint8(offset);
-      if (this.onHeartRateUpdate) this.onHeartRateUpdate(hrBpm);
+      // Bit 9: Heart Rate Present
+      if (flags & 0x200) {
+        const hrBpm = val.getUint8(offset);
+        if (this.onHeartRateUpdate) this.onHeartRateUpdate(hrBpm);
+      }
+    } catch (err) {
+      console.error("Error parsing FTMS data:", err);
     }
   }
 
   // Send request control command to FTMS
   async requestFTMSControl() {
     if (!this.characteristics.ftmsControl) return;
-    // Opcode 0x00: Request Control
-    const data = new Uint8Array([0x00]);
-    await this.characteristics.ftmsControl.writeValue(data);
+    try {
+      const data = new Uint8Array([0x00]); // Request Control
+      await this.characteristics.ftmsControl.writeValue(data);
+    } catch (err) {
+      console.warn("FTMS Request Control failed:", err);
+    }
   }
 
   // Set target power (ERG Mode)
   async setTargetPower(watts) {
     if (!this.characteristics.ftmsControl) return;
     try {
-      // Opcode 0x05: Set Target Power (uint16)
-      const data = new Uint8Array([0x05, watts & 0xFF, (watts >> 8) & 0xFF]);
+      // Clamp to reasonable range
+      const w = Math.max(0, Math.min(5000, Math.round(watts)));
+      const data = new Uint8Array([0x05, w & 0xFF, (w >> 8) & 0xFF]);
       await this.characteristics.ftmsControl.writeValue(data);
     } catch (err) {
-      console.error("FTMS Set Target Power failed:", err);
+      console.error("❌ FTMS Set Target Power failed:", err);
     }
   }
 
@@ -355,13 +400,6 @@ export class BLEManager {
   async setIndoorBikeSimulation(slopeGrade, riderWeight) {
     if (!this.characteristics.ftmsControl) return;
     try {
-      // Opcode 0x11: Set Indoor Bike Simulation Parameters
-      // Parameter bytes:
-      // - Wind Speed: sint16 (in 0.001 m/s) -> 0
-      // - Grade (Slope): sint16 (in 0.01%) -> e.g. 5.5% = 550
-      // - Crr (Rolling Resis): uint8 (in 0.0001) -> 40 (0.004)
-      // - Cw (Wind Resistance): uint8 (in 0.01 kg/m) -> 51 (0.51)
-      
       const gradeVal = Math.round(slopeGrade * 100); // 0.01% resolution
       const crrVal = 40; // 0.004
       const cwVal = 51; // 0.51 kg/m
@@ -375,7 +413,7 @@ export class BLEManager {
       ]);
       await this.characteristics.ftmsControl.writeValue(data);
     } catch (err) {
-      console.error("FTMS Set Simulation failed:", err);
+      console.error("❌ FTMS Set Simulation failed:", err);
     }
   }
 
@@ -384,30 +422,28 @@ export class BLEManager {
     this.isMocking = true;
     this.mockDistance = 0.0;
     
-    // Clear previous timers
     if (this.mockInterval) clearInterval(this.mockInterval);
     
     this.mockInterval = setInterval(() => {
-      // 1. Simulating power with small noise fluctuations around target
       let targetPower = this.mockTargetPower;
-      const noise = (Math.random() - 0.5) * 8; // +- 4W fluctuation
+      const noise = (Math.random() - 0.5) * 8;
       const currentPower = Math.max(0, Math.round(targetPower + noise));
       
       if (this.onPowerUpdate) this.onPowerUpdate(currentPower);
 
-      // 2. Simulating cadence (pedaling around 85-95 RPM, matching power intensity)
       const targetCadence = currentPower > 0 ? 88 + (currentPower - userFTP) / 10 + (Math.random() - 0.5) * 4 : 0;
       this.mockCadence = Math.round(Math.max(0, Math.min(120, targetCadence)));
       if (this.onCadenceUpdate) this.onCadenceUpdate(this.mockCadence);
 
-      // 3. Simulating Heart Rate (lagged adaptation to power output)
       const targetHr = currentPower > 0 ? 110 + (currentPower / userFTP) * 50 : 65;
       const hrDiff = targetHr - this.mockHeartRate;
-      this.mockHeartRate += hrDiff * 0.05 + (Math.random() - 0.5) * 0.5; // slow changes
+      this.mockHeartRate += hrDiff * 0.05 + (Math.random() - 0.5) * 0.5;
       const currentHr = Math.round(Math.max(50, Math.min(195, this.mockHeartRate)));
       if (this.onHeartRateUpdate) this.onHeartRateUpdate(currentHr);
 
     }, 1000);
+
+    console.log('🎮 Mock mode started');
   }
 
   stopMocking() {
@@ -416,6 +452,7 @@ export class BLEManager {
       clearInterval(this.mockInterval);
       this.mockInterval = null;
     }
+    console.log('🎮 Mock mode stopped');
   }
 
   // Disconnect all Bluetooth devices
@@ -423,8 +460,12 @@ export class BLEManager {
     this.stopMocking();
     Object.keys(this.devices).forEach(key => {
       const dev = this.devices[key];
-      if (dev && dev.gatt.connected) {
-        dev.gatt.disconnect();
+      if (dev && dev.gatt && dev.gatt.connected) {
+        try {
+          dev.gatt.disconnect();
+        } catch (err) {
+          console.warn(`Error disconnecting ${key}:`, err);
+        }
       }
       this.devices[key] = null;
       this.setStatus(key, 'disconnected');
@@ -432,4 +473,5 @@ export class BLEManager {
     this.characteristics.ftmsControl = null;
   }
 }
+
 export const ble = new BLEManager();
