@@ -71,6 +71,22 @@ const el = {
   btnFtmsInc: document.getElementById('btn-ftms-inc'),
   btnFtmsErg: document.getElementById('btn-ftms-erg'),
   btnFtmsSim: document.getElementById('btn-ftms-sim'),
+
+  // ThinkRider XXPro dedicated controls
+  btnConnectThinkRider: document.getElementById('btn-connect-thinkrider'),
+  btnConnectHrBand: document.getElementById('btn-connect-hrband'),
+  devThinkRider: document.getElementById('dev-thinkrider'),
+  devHrBand: document.getElementById('dev-hrband'),
+  thinkRiderStatusText: document.getElementById('thinkrider-status-text'),
+  hrBandStatusText: document.getElementById('hrband-status-text'),
+  thinkRiderScanRing: document.getElementById('thinkrider-scan-ring'),
+  hrBandScanRing: document.getElementById('hrband-scan-ring'),
+  thinkRiderModePanel: document.getElementById('thinkrider-mode-panel'),
+  valTrTargetW: document.getElementById('val-tr-target-w'),
+  btnTrDec: document.getElementById('btn-tr-dec'),
+  btnTrInc: document.getElementById('btn-tr-inc'),
+  btnTrErg: document.getElementById('btn-tr-erg'),
+  btnTrSim: document.getElementById('btn-tr-sim'),
   
   // Workouts Panel
   presetSelect: document.getElementById('workout-preset-select'),
@@ -254,6 +270,52 @@ function initApp() {
 // BLE CONNECTIONS & telemetry BINDINGS
 // ----------------------------------------------------
 function setupBLEListeners() {
+  // --- ThinkRider XXPro Dedicated Buttons ---
+  let trTargetPower = 200;
+  let trMode = 'erg'; // 'erg' | 'sim'
+
+  el.btnConnectThinkRider.addEventListener('click', async () => {
+    if (ble.devices.thinkrider) {
+      ble.disconnectThinkRider();
+    } else {
+      await ble.connectThinkRider();
+      if (ble.devices.thinkrider) {
+        el.thinkRiderModePanel.classList.remove('hidden');
+        el.valTrTargetW.textContent = trTargetPower;
+      }
+    }
+  });
+
+  el.btnConnectHrBand.addEventListener('click', async () => {
+    if (ble.devices.hrband) {
+      ble.disconnectHRBand();
+    } else {
+      await ble.connectHRBand();
+    }
+  });
+
+  // ThinkRider ERG / SIM mode toggle
+  el.btnTrErg.addEventListener('click', () => {
+    trMode = 'erg';
+    el.btnTrErg.classList.add('active');
+    el.btnTrSim.classList.remove('active');
+  });
+  el.btnTrSim.addEventListener('click', () => {
+    trMode = 'sim';
+    el.btnTrSim.classList.add('active');
+    el.btnTrErg.classList.remove('active');
+  });
+  el.btnTrDec.addEventListener('click', () => {
+    trTargetPower = Math.max(50, trTargetPower - 10);
+    el.valTrTargetW.textContent = trTargetPower;
+    if (trMode === 'erg' && ble.devices.thinkrider) ble.setThinkRiderTargetPower(trTargetPower);
+  });
+  el.btnTrInc.addEventListener('click', () => {
+    trTargetPower = Math.min(800, trTargetPower + 10);
+    el.valTrTargetW.textContent = trTargetPower;
+    if (trMode === 'erg' && ble.devices.thinkrider) ble.setThinkRiderTargetPower(trTargetPower);
+  });
+
   // Bind UI Buttons to Bluetooth Connection triggers
   el.btnConnectPower.addEventListener('click', async () => {
     if (ble.devices.power || ble.devices.ftms) {
@@ -292,38 +354,68 @@ function setupBLEListeners() {
 
   // Bluetooth Status Visual Updates
   ble.onStatusChange = (deviceKey, status) => {
-    let devEl, btnEl;
-    if (deviceKey === 'power' || deviceKey === 'ftms') {
+    let devEl, btnEl, statusTextEl, scanRingEl;
+
+    if (deviceKey === 'thinkrider') {
+      devEl = el.devThinkRider;
+      btnEl = el.btnConnectThinkRider;
+      statusTextEl = el.thinkRiderStatusText;
+      scanRingEl = el.thinkRiderScanRing;
+    } else if (deviceKey === 'hrband') {
+      devEl = el.devHrBand;
+      btnEl = el.btnConnectHrBand;
+      statusTextEl = el.hrBandStatusText;
+      scanRingEl = el.hrBandScanRing;
+    } else if (deviceKey === 'power' || deviceKey === 'ftms') {
       devEl = el.devPower;
       btnEl = el.btnConnectPower;
+      statusTextEl = devEl ? devEl.querySelector('.device-status-text') : null;
     } else if (deviceKey === 'hr') {
       devEl = el.devHr;
       btnEl = el.btnConnectHr;
+      statusTextEl = devEl ? devEl.querySelector('.device-status-text') : null;
     } else if (deviceKey === 'cadence') {
       devEl = el.devCadence;
       btnEl = el.btnConnectCadence;
+      statusTextEl = devEl ? devEl.querySelector('.device-status-text') : null;
     }
 
     if (!devEl) return;
 
     // Reset classes
     devEl.classList.remove('status-disconnected', 'status-searching', 'status-connected');
+    if (scanRingEl) scanRingEl.classList.add('hidden');
     
     if (status === 'connected') {
       devEl.classList.add('status-connected');
-      devEl.querySelector('.device-status-text').textContent = '已連線';
-      btnEl.textContent = '中斷';
+      if (statusTextEl) statusTextEl.textContent = '已連線 ✓';
+      else devEl.querySelector('.device-status-text').textContent = '已連線';
+      btnEl.textContent = '中斷連線';
+      btnEl.classList.remove('btn-thinkrider');
+      btnEl.classList.add('btn-connected-tr');
+
+      if (deviceKey === 'thinkrider') {
+        el.thinkRiderModePanel.classList.remove('hidden');
+      }
     } else if (status === 'searching') {
       devEl.classList.add('status-searching');
-      devEl.querySelector('.device-status-text').textContent = '配對搜尋中...';
+      if (statusTextEl) statusTextEl.textContent = '掃描中...';
+      else devEl.querySelector('.device-status-text').textContent = '配對搜尋中...';
       btnEl.textContent = '取消';
+      if (scanRingEl) scanRingEl.classList.remove('hidden');
     } else {
       devEl.classList.add('status-disconnected');
-      devEl.querySelector('.device-status-text').textContent = '未連線';
-      btnEl.textContent = '連線';
-      
+      if (statusTextEl) statusTextEl.textContent = '未連線';
+      else devEl.querySelector('.device-status-text').textContent = '未連線';
+      btnEl.textContent = deviceKey === 'thinkrider' || deviceKey === 'hrband' ? '🔵 搜尋配對' : '連線';
+      btnEl.classList.add(deviceKey === 'thinkrider' || deviceKey === 'hrband' ? 'btn-thinkrider' : 'btn-connect');
+      btnEl.classList.remove('btn-connected-tr');
+
       if (deviceKey === 'power') {
         el.trainerModePanel.classList.add('hidden');
+      }
+      if (deviceKey === 'thinkrider') {
+        el.thinkRiderModePanel.classList.add('hidden');
       }
     }
   };
@@ -455,6 +547,32 @@ function setupFileDropzones() {
       loadPresetRoute(item.dataset.route);
     });
   });
+
+  // Source-category tabs (Free Data panel)
+  const srcTabs = document.querySelectorAll('.src-tab');
+  const srcPanels = document.querySelectorAll('.src-panel');
+  srcTabs.forEach(tab => {
+    tab.addEventListener('click', () => {
+      srcTabs.forEach(t => t.classList.remove('active'));
+      srcPanels.forEach(p => p.classList.add('hidden'));
+      tab.classList.add('active');
+      const panel = document.getElementById(`src-${tab.dataset.src}`);
+      if (panel) panel.classList.remove('hidden');
+    });
+  });
+
+  // Manual elevation enrich button
+  const btnEnrich = document.getElementById('btn-enrich-elevation');
+  if (btnEnrich) {
+    btnEnrich.addEventListener('click', async () => {
+      if (!state.currentRoute) {
+        alert('請先載入一條路線再補充海拔資料。');
+        return;
+      }
+      await enrichRouteElevation(state.currentRoute);
+      updateRouteInfoUI(state.currentRoute);
+    });
+  }
 }
 
 // Load default selected preset workout
@@ -557,24 +675,172 @@ function loadPresetRoute(routeKey) {
   }
 }
 
-// Load custom GPX route
+// Load custom GPX or KML route
 async function handleGpxFile(file) {
   if (!file) return;
   try {
     const text = await file.text();
-    const route = gpxEngine.parseGPX(text);
+    let route;
+    if (file.name.toLowerCase().endsWith('.kml')) {
+      route = parseKML(text);
+    } else {
+      route = gpxEngine.parseGPX(text);
+    }
     state.currentRoute = route;
-    
+
     // Clear preset routes active state
     el.presetRoutes.forEach(r => r.classList.remove('active'));
-    
+
+    // Auto-enrich elevation if all points have zero elevation
+    const eleToggle = document.getElementById('ele-enrich-toggle');
+    const allZero = route.points.every(p => p.ele === 0);
+    if (eleToggle && eleToggle.checked && allZero) {
+      await enrichRouteElevation(route);
+    }
+
     updateRouteInfoUI(route);
     if (cityManager) {
-      cityManager.setRoute('taipei'); // Default scenic route for loaded GPX
+      cityManager.setRoute('taipei');
     }
     alert(`成功載入路線軌跡：${route.name}`);
   } catch (err) {
-    alert(`GPX 載入錯誤: ${err.message}`);
+    alert(`路線載入錯誤: ${err.message}`);
+  }
+}
+
+// Parse KML files (from gov.tw and others)
+function parseKML(kmlText) {
+  const parser = new DOMParser();
+  const xmlDoc = parser.parseFromString(kmlText, 'text/xml');
+
+  const parserError = xmlDoc.querySelector('parsererror');
+  if (parserError) throw new Error('KML 檔案解析失敗！非合法的 XML 格式。');
+
+  // Try to get route name
+  const nameEl = xmlDoc.querySelector('Document > name, Folder > name, Placemark > name');
+  const routeName = nameEl ? nameEl.textContent.trim() : '匯入的 KML 路線';
+
+  // Extract coordinates from LineString or Track
+  let coordText = '';
+  const lineString = xmlDoc.querySelector('LineString > coordinates');
+  const track = xmlDoc.querySelector('Track > coord') || xmlDoc.querySelector('MultiTrack coord');
+
+  if (lineString) {
+    coordText = lineString.textContent.trim();
+  } else {
+    // gx:Track format
+    const coords = xmlDoc.querySelectorAll('gx\\:coord, coord');
+    coordText = Array.from(coords).map(c => c.textContent.trim().replace(/\s+/g, ',')).join(' ');
+  }
+
+  if (!coordText) throw new Error('KML 中找不到 LineString 或 Track 座標資料。');
+
+  // Parse coord entries: "lon,lat,ele" per KML spec
+  const rawPoints = coordText.trim().split(/\s+/).filter(Boolean);
+  if (rawPoints.length < 2) throw new Error('KML 座標點不足（至少需要 2 個點）。');
+
+  const points = [];
+  let accumulatedDistance = 0;
+
+  // Haversine (duplicated locally for self-contained use)
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const R = 6371000;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  };
+
+  for (const raw of rawPoints) {
+    const parts = raw.split(',');
+    if (parts.length < 2) continue;
+    const lon = parseFloat(parts[0]);
+    const lat = parseFloat(parts[1]);
+    const ele = parts.length >= 3 ? parseFloat(parts[2]) : 0;
+    if (isNaN(lat) || isNaN(lon)) continue;
+
+    if (points.length > 0) {
+      const prev = points[points.length - 1];
+      accumulatedDistance += haversine(prev.lat, prev.lon, lat, lon);
+    }
+    points.push({ lat, lon, ele: isNaN(ele) ? 0 : ele, dist: accumulatedDistance });
+  }
+
+  if (points.length < 2) throw new Error('KML 座標有效點不足。');
+
+  // Calculate grades
+  for (let i = 1; i < points.length; i++) {
+    const d = points[i].dist - points[i-1].dist;
+    points[i].grade = d > 0.1 ? (points[i].ele - points[i-1].ele) / d : points[i-1].grade || 0;
+  }
+  points[0].grade = points[1] ? points[1].grade : 0;
+
+  let totalAscent = 0, maxGrade = 0;
+  for (let i = 1; i < points.length; i++) {
+    const diff = points[i].ele - points[i-1].ele;
+    if (diff > 0) totalAscent += diff;
+    if (Math.abs(points[i].grade) > maxGrade) maxGrade = Math.abs(points[i].grade);
+  }
+
+  return {
+    name: routeName,
+    points,
+    totalDistance: accumulatedDistance,
+    totalAscent,
+    maxGrade: maxGrade * 100,
+    avgGrade: accumulatedDistance > 0 ? (points[points.length-1].ele - points[0].ele) / accumulatedDistance * 100 : 0
+  };
+}
+
+// Enrich a route's elevation using Open-Meteo Elevation API (batch of 100)
+async function enrichRouteElevation(route) {
+  const statusEl = document.getElementById('ele-enrich-status');
+  const setStatus = (msg) => { if (statusEl) statusEl.textContent = msg; };
+
+  const pts = route.points;
+  const BATCH = 100;
+  setStatus('查詢中...');
+
+  try {
+    for (let i = 0; i < pts.length; i += BATCH) {
+      const batch = pts.slice(i, i + BATCH);
+      const lats = batch.map(p => p.lat.toFixed(6)).join(',');
+      const lons = batch.map(p => p.lon.toFixed(6)).join(',');
+      const url = `https://api.open-meteo.com/v1/elevation?latitude=${lats}&longitude=${lons}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`Open-Meteo API 回應錯誤: ${res.status}`);
+      const data = await res.json();
+      if (!data.elevation) throw new Error('API 回傳格式不符。');
+      data.elevation.forEach((ele, j) => {
+        pts[i + j].ele = ele;
+      });
+      setStatus(`${Math.min(i + BATCH, pts.length)}/${pts.length} 點`);
+    }
+
+    // Recalculate grades after elevation fill
+    for (let i = 1; i < pts.length; i++) {
+      const d = pts[i].dist - pts[i-1].dist;
+      pts[i].grade = d > 0.1 ? (pts[i].ele - pts[i-1].ele) / d : (pts[i-1].grade || 0);
+    }
+    pts[0].grade = pts[1] ? pts[1].grade : 0;
+
+    // Recompute stats
+    let totalAscent = 0, maxGrade = 0;
+    for (let i = 1; i < pts.length; i++) {
+      const diff = pts[i].ele - pts[i-1].ele;
+      if (diff > 0) totalAscent += diff;
+      if (Math.abs(pts[i].grade) > maxGrade) maxGrade = Math.abs(pts[i].grade);
+    }
+    route.totalAscent = totalAscent;
+    route.maxGrade = maxGrade * 100;
+    route.avgGrade = route.totalDistance > 0 ? (pts[pts.length-1].ele - pts[0].ele) / route.totalDistance * 100 : 0;
+
+    setStatus('✅ 補充完成');
+    setTimeout(() => setStatus(''), 4000);
+  } catch (err) {
+    console.error('Elevation enrich failed:', err);
+    setStatus('❌ 查詢失敗');
+    setTimeout(() => setStatus(''), 5000);
   }
 }
 
@@ -667,6 +933,11 @@ function rideTick() {
       ble.setTargetPower(targetPower);
       el.valFtmsTargetW.textContent = targetPower;
     }
+    // ThinkRider XXPro ERG mode sync
+    if (ble.devices.thinkrider) {
+      ble.setThinkRiderTargetPower(targetPower);
+      el.valTrTargetW.textContent = targetPower;
+    }
     
     // Sync to simulator generator
     if (ble.isMocking) {
@@ -722,6 +993,10 @@ function rideTick() {
     // Sync slope grade to trainer (FTMS SIM mode)
     if (ble.devices.ftms && !state.currentWorkout) {
       ble.setIndoorBikeSimulation(state.currentGradePct, state.weight);
+    }
+    // ThinkRider XXPro SIM slope sync
+    if (ble.devices.thinkrider && !state.currentWorkout) {
+      ble.setThinkRiderSimulation(state.currentGradePct);
     }
     
     // Update mini profile marker
