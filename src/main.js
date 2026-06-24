@@ -644,6 +644,17 @@ function setupFileDropzones() {
 // Load default selected preset workout
 function loadPresetWorkout() {
   const presetKey = el.presetSelect.value;
+  if (presetKey === 'none') {
+    state.currentWorkout = null;
+    el.previewTitle.textContent = '自由騎乘';
+    el.previewDuration.textContent = '-- 分 -- 秒';
+    el.previewTss.textContent = '0';
+    el.previewIf.textContent = '0.00';
+    el.previewMaxP.textContent = '--% FTP';
+    el.previewTimeline.innerHTML = '<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-size:0.85rem;">目前無載入課表，阻力將由手動設定或虛擬路線坡度控制</div>';
+    drawCharts();
+    return;
+  }
   const rawData = WORKOUT_PRESETS[presetKey];
   if (rawData) {
     const player = new WorkoutPlayer(rawData, state.ftp);
@@ -1451,19 +1462,25 @@ el.btnWorkoutNext.addEventListener('click', () => {
 
 // FTMS MANUAL TARGET POWER ADJUSTMENTS
 el.btnFtmsDec.addEventListener('click', () => {
-  if (state.currentWorkout) return; // disabled during structured workouts
+  if (state.isRideActive && state.currentWorkout) return; // disabled only during active structured workouts
   const val = Math.max(50, (parseInt(el.valFtmsTargetW.textContent) || 150) - 10);
   el.valFtmsTargetW.textContent = val;
   if (ble.isMocking) ble.mockTargetPower = val;
   if (ble.devices.ftms) ble.setTargetPower(val);
+  if (state.trainerControlMode === 'erg') {
+    el.valTargetPower.textContent = val;
+  }
 });
 
 el.btnFtmsInc.addEventListener('click', () => {
-  if (state.currentWorkout) return; // disabled during structured workouts
+  if (state.isRideActive && state.currentWorkout) return; // disabled only during active structured workouts
   const val = Math.min(600, (parseInt(el.valFtmsTargetW.textContent) || 150) + 10);
   el.valFtmsTargetW.textContent = val;
   if (ble.isMocking) ble.mockTargetPower = val;
   if (ble.devices.ftms) ble.setTargetPower(val);
+  if (state.trainerControlMode === 'erg') {
+    el.valTargetPower.textContent = val;
+  }
 });
 
 // FTMS Modes toggling
