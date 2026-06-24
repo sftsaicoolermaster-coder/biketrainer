@@ -464,6 +464,10 @@ function setupBLEListeners() {
       if (statusTextEl) statusTextEl.textContent = '已連線 ✓';
       else devEl.querySelector('.device-status-text').textContent = '已連線';
       btnEl.textContent = '中斷連線';
+      
+      if (ble.devices.ftms) {
+        el.trainerModePanel.classList.remove('hidden');
+      }
     } else if (status === 'searching') {
       devEl.classList.add('status-searching');
       if (statusTextEl) statusTextEl.textContent = '掃描中...';
@@ -478,7 +482,9 @@ function setupBLEListeners() {
       btnEl.classList.remove('btn-connected-tr');
 
       if (deviceKey === 'power') {
-        el.trainerModePanel.classList.add('hidden');
+        if (!el.mockToggle.checked) {
+          el.trainerModePanel.classList.add('hidden');
+        }
       }
     }
   };
@@ -545,8 +551,14 @@ function setupBLEListeners() {
       if (state.isRideActive) {
         ble.startMocking(state.ftp);
       }
+      el.trainerModePanel.classList.remove('hidden');
+      // Set default target power to 150W in mock target display
+      el.valFtmsTargetW.textContent = ble.mockTargetPower || 150;
     } else {
       ble.stopMocking();
+      if (!ble.devices.ftms) {
+        el.trainerModePanel.classList.add('hidden');
+      }
     }
   });
 }
@@ -1004,9 +1016,8 @@ function rideTick() {
     // Auto sync target power to BLE Trainer (FTMS ERG mode)
     if (ble.devices.ftms) {
       ble.setTargetPower(targetPower);
-      el.valFtmsTargetW.textContent = targetPower;
     }
-
+    el.valFtmsTargetW.textContent = targetPower;
     
     // Sync to simulator generator
     if (ble.isMocking) {
