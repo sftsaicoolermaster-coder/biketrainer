@@ -44,7 +44,10 @@ let state = {
   startTimeISO: null,
   
   // Ticker timer ID
-  tickerInterval: null
+  tickerInterval: null,
+
+  // Trainer control mode
+  trainerControlMode: 'erg'
 };
 
 // DOM Elements Selection
@@ -305,29 +308,13 @@ function initApp() {
       updateGeminiStatusUI(true, true);
 
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: 'Hello' }] }]
-          })
-        });
-
-        if (response.ok) {
-          localStorage.setItem('gemini_api_key', key);
-          updateGeminiStatusUI(true, false, true);
-          alert('Gemini API 金鑰驗證成功並已儲存！');
-        } else {
-          const errData = await response.json();
-          const msg = errData.error?.message || '無效的金鑰';
-          updateGeminiStatusUI(true, false, false, msg);
-          alert(`驗證失敗: ${msg}`);
-        }
+        const res = await callGeminiAPI(key, "Say 'OK' in one word.");
+        localStorage.setItem('gemini_api_key', key);
+        updateGeminiStatusUI(true, false, true);
+        alert(`Gemini API 金鑰驗證成功（使用模型: ${res.model}）並已儲存！`);
       } catch (err) {
         updateGeminiStatusUI(true, false, false, err.message);
-        alert(`連線錯誤: ${err.message}`);
+        alert(`驗證失敗: ${err.message}`);
       }
     });
   }
@@ -1028,6 +1015,13 @@ function rideTick() {
       ble.mockTargetPower = targetPower;
     }
 
+    // Workouts enforce ERG Mode control UI buttons
+    if (!el.btnFtmsErg.classList.contains('active')) {
+      el.btnFtmsErg.classList.add('active');
+      el.btnFtmsSim.classList.remove('active');
+    }
+    state.trainerControlMode = 'erg';
+
     // Tick the workout player
     const intervalRemaining = player.getIntervalRemainingTime();
     
@@ -1062,7 +1056,18 @@ function rideTick() {
     el.intervalProgressFill.style.width = `${progress * 100}%`;
   } else {
     // Open riding / No target
-    el.valTargetPower.textContent = '--';
+    if (state.trainerControlMode === 'erg') {
+      const manualPower = parseInt(el.valFtmsTargetW.textContent) || 150;
+      el.valTargetPower.textContent = manualPower;
+      if (ble.devices.ftms) {
+        ble.setTargetPower(manualPower);
+      }
+      if (ble.isMocking) {
+        ble.mockTargetPower = manualPower;
+      }
+    } else {
+      el.valTargetPower.textContent = '--';
+    }
   }
 
   // 2. Process GPX Route Simulation / Slope adjustment
@@ -1075,7 +1080,7 @@ function rideTick() {
     el.valGrade.textContent = state.currentGradePct.toFixed(1);
     
     // Sync slope grade to trainer (FTMS SIM mode)
-    if (ble.devices.ftms && !state.currentWorkout) {
+    if (ble.devices.ftms && !state.currentWorkout && state.trainerControlMode === 'sim') {
       ble.setIndoorBikeSimulation(state.currentGradePct, state.weight);
     }
 
@@ -1465,13 +1470,29 @@ el.btnFtmsInc.addEventListener('click', () => {
 el.btnFtmsErg.addEventListener('click', () => {
   el.btnFtmsErg.classList.add('active');
   el.btnFtmsSim.classList.remove('active');
-  // Trigger trainer mode write...
+  state.trainerControlMode = 'erg';
+  
+  // Immediately sync target power to trainer/mock
+  const targetW = parseInt(el.valFtmsTargetW.textContent) || 150;
+  if (ble.devices.ftms) {
+    ble.setTargetPower(targetW);
+  }
+  if (ble.isMocking) {
+    ble.mockTargetPower = targetW;
+  }
+  el.valTargetPower.textContent = targetW;
 });
 
 el.btnFtmsSim.addEventListener('click', () => {
   el.btnFtmsSim.classList.add('active');
   el.btnFtmsErg.classList.remove('active');
-  // Trigger trainer mode write...
+  state.trainerControlMode = 'sim';
+  
+  // Immediately sync simulation grade to trainer
+  if (ble.devices.ftms) {
+    ble.setIndoorBikeSimulation(state.currentGradePct, state.weight);
+  }
+  el.valTargetPower.textContent = '--';
 });
 
 // Summary Modal Close
@@ -1648,31 +1669,8 @@ ${zoneDistributionText}
 請用繁體中文回覆，使用 Markdown 格式輸出。`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        contents: [
-          {
-            parts: [
-              {
-                text: prompt
-              }
-            ]
-          }
-        ]
-      })
-    });
-
-    if (!response.ok) {
-      const errData = await response.json();
-      throw new Error(errData.error?.message || `HTTP error! status: ${response.status}`);
-    }
-
-    const resData = await response.json();
-    const markdown = resData.candidates?.[0]?.content?.parts?.[0]?.text || '無法產生建議，請稍後重試。';
+    const res = await callGeminiAPI(apiKey, prompt);
+    const markdown = res.text || '無法產生建議，請稍後重試。';
     
     // Parse markdown to HTML
     const htmlContent = parseMarkdownToHtml(markdown);
@@ -1711,6 +1709,42 @@ ${zoneDistributionText}
       btnEl.classList.remove('hidden');
     }
   }
+}
+
+// Generic call to Gemini API with fallback models
+async function callGeminiAPI(apiKey, promptText) {
+  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  let lastError = null;
+
+  for (const model of models) {
+    try {
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: promptText }] }]
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (text) {
+          return { text, model };
+        }
+      } else {
+        const errData = await response.json();
+        const msg = errData.error?.message || `HTTP error! status: ${response.status}`;
+        lastError = new Error(`${model} 失敗: ${msg}`);
+      }
+    } catch (err) {
+      lastError = new Error(`${model} 連線錯誤: ${err.message}`);
+    }
+  }
+
+  throw lastError || new Error("呼叫所有 Gemini 模型均失敗");
 }
 
 // Lightweight Markdown to HTML Converter
