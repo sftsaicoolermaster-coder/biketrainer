@@ -11,8 +11,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
   
-  <script type="module" crossorigin src="/biketrainer/assets/index-Mll6kan1.js"></script>
-  <link rel="stylesheet" crossorigin href="/biketrainer/assets/index-CxWHBIPQ.css">
+  <script type="module" crossorigin src="/biketrainer/assets/index-Cef2ofyU.js"></script>
+  <link rel="stylesheet" crossorigin href="/biketrainer/assets/index-BsqSE2jT.css">
 </head>
 <body>
   <div class="app-container">
@@ -36,6 +36,10 @@
         <div class="control-group">
           <label for="weight-input">體重 (kg)</label>
           <input type="number" id="weight-input" value="70" min="30" max="200" class="input-number">
+        </div>
+        <div class="control-group">
+          <label for="height-input">身高 (cm)</label>
+          <input type="number" id="height-input" value="175" min="100" max="250" class="input-number">
         </div>
         <div class="control-group toggle-group">
           <span class="toggle-label">模擬模式</span>
@@ -74,85 +78,28 @@
             <svg viewBox="0 0 24 24" width="16" height="16"><path d="M21.71 11.29l-9-9c-.39-.39-1.02-.39-1.41 0l-9 9c-.39.39-.39 1.02 0 1.41l9 9c.39.39 1.02.39 1.41 0l9-9c.39-.38.39-1.01 0-1.41zM14 14.5V12h-4v3H8v-4c0-.55.45-1 1-1h5V7.5l3.5 3.5-3.5 3.5z"/></svg>
             虛擬路線
           </button>
+          <button class="tab-btn" data-tab="ai-assistant">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7zm2.85 11.1l-.85.6V16h-4v-2.3l-.85-.6C7.8 12.16 7 10.63 7 9c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.63-.8 3.16-2.15 4.1z"/></svg>
+            AI 助理
+          </button>
         </nav>
 
         <!-- Tab Content 1: Devices -->
         <section class="tab-panel active" id="panel-devices">
+          <!-- iOS/iPadOS Web Bluetooth Warning Alert -->
+          <div id="ios-ble-warning" class="panel-card warning-card hidden">
+            <h4>⚠️ iOS / iPadOS 系統限制說明</h4>
+            <p>由於 Apple 系統限制，iPad 及 iPhone 上的 Safari 和 Chrome 不支援 Web Bluetooth 藍牙功能。</p>
+            <p><strong>解決方案：</strong></p>
+            <ul style="padding-left:1.2rem; margin-top:0.25rem;">
+              <li style="margin-bottom:0.25rem;">請在 App Store 下載並使用支援 Web Bluetooth 的瀏覽器，如 <strong>Bluefy</strong> 或 <strong>Webble</strong> 開啟此網頁。</li>
+              <li style="margin-bottom:0.25rem;">或改用 Windows, macOS 或 Android 裝置的 Chrome/Edge 瀏覽器。</li>
+            </ul>
+          </div>
+
           <div class="panel-card">
             <h3>藍牙感測器連接</h3>
             <p class="panel-desc">使用 Web Bluetooth 直接連線，不需安裝任何額外驅動程式。</p>
-
-            <!-- ★ ThinkRider XXPro Dedicated Section ★ -->
-            <div class="thinkrider-section">
-              <div class="thinkrider-brand-header">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm1 16h-2v-6h2zm0-8h-2V8h2z"/></svg>
-                <span>ThinkRider XXPro 專屬配對</span>
-                <span class="badge badge-low-hardware" style="font-size:0.65rem;">BLE FTMS</span>
-              </div>
-
-              <div class="device-list">
-                <!-- ThinkRider XXPro Trainer -->
-                <div class="device-item status-disconnected thinkrider-device" id="dev-thinkrider">
-                  <div class="device-info">
-                    <div class="device-icon-wrapper thinkrider-icon">
-                      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                        <path d="M13.49 5.48c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm-3.6 13.9l1-4.4 2.1 2v6h2v-7.5l-2.1-2 .6-3c1.3 1.5 3.3 2.5 5.5 2.5v-2c-1.9 0-3.5-1-4.3-2.4l-1-1.6c-.4-.6-1-1-1.7-1-.3 0-.5.1-.8.1l-5.2 2.2v4.7h2v-3.4l1.8-.7-1.6 8.1-4.9-1-.4 2 7 1.4z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <span class="device-title">ThinkRider XXPro 訓練台</span>
-                      <span class="device-status-text" id="thinkrider-status-text">未連線</span>
-                      <span class="device-compat-tip">支援 ERG 阻力控制 · BLE FTMS · ANT+ FE-C</span>
-                    </div>
-                  </div>
-                  <div class="device-btn-group">
-                    <div class="scan-pulse-ring hidden" id="thinkrider-scan-ring"></div>
-                    <button class="btn btn-thinkrider btn-sm" id="btn-connect-thinkrider">🔵 搜尋配對</button>
-                  </div>
-                </div>
-
-                <!-- ThinkRider HR Band -->
-                <div class="device-item status-disconnected thinkrider-device" id="dev-hrband">
-                  <div class="device-info">
-                    <div class="device-icon-wrapper hrband-icon">
-                      <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                        <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
-                      </svg>
-                    </div>
-                    <div>
-                      <span class="device-title">心率帶 (ThinkRider / 通用)</span>
-                      <span class="device-status-text" id="hrband-status-text">未連線</span>
-                      <span class="device-compat-tip">ThinkRider HRM · Wahoo Tickr · Garmin HRM Pro</span>
-                    </div>
-                  </div>
-                  <div class="device-btn-group">
-                    <div class="scan-pulse-ring hidden" id="hrband-scan-ring"></div>
-                    <button class="btn btn-thinkrider btn-sm" id="btn-connect-hrband">🔵 搜尋配對</button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- ThinkRider ERG/SIM Control Panel -->
-              <div class="trainer-mode-panel hidden" id="thinkrider-mode-panel">
-                <h4>ThinkRider 阻力控制 (FTMS)</h4>
-                <div class="btn-group-row">
-                  <button class="btn btn-outline active" id="btn-tr-erg">ERG 模式</button>
-                  <button class="btn btn-outline" id="btn-tr-sim">SIM 坡度模式</button>
-                </div>
-                <div class="erg-target-adjuster">
-                  <span>目標功率: <strong id="val-tr-target-w">--</strong> W</span>
-                  <div class="adjuster-buttons">
-                    <button class="btn btn-sm btn-icon" id="btn-tr-dec">-10W</button>
-                    <button class="btn btn-sm btn-icon" id="btn-tr-inc">+10W</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Divider -->
-            <div class="device-section-divider">
-              <span>其他品牌設備 (通用 FTMS / CPS)</span>
-            </div>
             
             <div class="device-list">
               <!-- Smart Trainer / Power Meter -->
@@ -218,7 +165,7 @@
 
           <div class="panel-card usage-tip">
             <h4>💡 瀏覽器需求</h4>
-            <p>本系統使用 <strong>Web Bluetooth API</strong>。請使用 Google Chrome, Microsoft Edge 或 Opera 瀏覽器運行。若在模擬模式下，不需要任何實體藍牙設備即可體驗完整功能！</p>
+            <p>本系統使用 <strong>Web Bluetooth API</strong>。請使用 Google Chrome, Microsoft Edge 或 Opera 瀏覽器運行。若在模擬模式下，不需要 any 實體藍牙設備即可體驗完整功能！</p>
           </div>
         </section>
 
@@ -236,6 +183,15 @@
                 <option value="vo2_max">VO2 Max 爆發力訓練 (5x3分鐘 120%)</option>
                 <option value="active_recovery">主動恢復 (30分鐘 輕踩排乳酸)</option>
                 <option value="ramp_test">階梯漸進式測試 (Ramp Test)</option>
+              </select>
+            </div>
+
+            <div class="workout-intensity-container" style="margin-top: 1rem;">
+              <label for="workout-intensity-select">課表強度百分比</label>
+              <select id="workout-intensity-select" class="select-field">
+                <option value="0.6">60% FTP (調整目標為 6 成功率)</option>
+                <option value="0.8">80% FTP (調整目標為 8 成功率)</option>
+                <option value="1.0" selected>100% FTP (標準課表強度)</option>
               </select>
             </div>
 
@@ -295,6 +251,10 @@
               <div class="elevation-profile-container">
                 <canvas id="elevation-profile-canvas" height="80"></canvas>
               </div>
+              <button class="btn btn-outline btn-block" id="btn-enrich-elevation" style="margin-top:0.75rem;">
+                <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:6px;vertical-align:middle" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+                立即為目前路線補充海拔資料
+              </button>
             </div>
 
             <!-- Built-in Preset Routes -->
@@ -323,191 +283,34 @@
               </div>
             </div>
           </div>
+        </section>
 
-          <!-- ===== FREE DATA SOURCES PANEL ===== -->
-          <div class="panel-card free-data-panel">
-            <h3>🌐 免費圖資 &amp; 軌跡資料庫</h3>
-            <p class="panel-desc">點擊連結前往下載 GPX，再拖回上方匯入框即可使用。</p>
+        <!-- Tab Content 4: AI Gemini Assistant -->
+        <section class="tab-panel" id="panel-ai-assistant">
+          <div class="panel-card">
+            <h3>🤖 Google AI Gemini 訓練助理</h3>
+            <p class="panel-desc">使用 Google AI Gemini 模型為您的訓練提供個人化分析與調整建議。</p>
 
-            <!-- Source category tabs -->
-            <div class="source-tabs">
-              <button class="src-tab active" data-src="tw">🇹🇼 台灣</button>
-              <button class="src-tab" data-src="intl">🌍 國際賽道</button>
-              <button class="src-tab" data-src="tools">🛠️ 規劃工具</button>
-              <button class="src-tab" data-src="ele">📡 高程 API</button>
+            <div class="control-group-api" style="margin-bottom: 1.25rem;">
+              <label for="gemini-api-key" style="display:block; margin-bottom:0.5rem; font-weight:500;">Gemini API 金鑰 (API Key)</label>
+              <div style="display: flex; gap: 0.5rem;">
+                <input type="password" id="gemini-api-key" placeholder="輸入 AI zaSy..." class="select-field" style="flex:1; margin-bottom:0;">
+                <button class="btn btn-outline" id="btn-toggle-api-key" style="padding: 0 0.75rem;">👁️</button>
+              </div>
+              <button class="btn btn-primary btn-block" id="btn-save-api-key" style="margin-top:0.75rem;">儲存並驗證 API Key</button>
+              <p class="panel-desc" style="font-size:0.75rem; margin-top:0.5rem; color:var(--text-muted);">金鑰將安全地保存在您瀏覽器的 LocalStorage 中，不會上傳到任何第三方伺服器。</p>
             </div>
 
-            <!-- Taiwan routes -->
-            <div class="src-panel active" id="src-tw">
-              <div class="src-item">
-                <div class="src-item-icon">🏛️</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">政府開放資料平臺</div>
-                  <div class="src-item-desc">各縣市自行車道 GIS 資料，含 KML / JSON 格式</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-kml">KML</span><span class="tag tag-open">開放授權</span></div>
-                </div>
-                <a href="https://data.gov.tw/datasets/search?qs=%E8%87%AA%E8%A1%8C%E8%BB%8A%E9%81%93" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🚵</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">環騎圓夢（交通部）</div>
-                  <div class="src-item-desc">自行車環島1號線 + 支線完整圖資，官方 GPX</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-tw">台灣官方</span></div>
-                </div>
-                <a href="https://itaiwanbike.iot.gov.tw" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🏔️</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">健行筆記</div>
-                  <div class="src-item-desc">大量車友實測 GPX 軌跡，陽明山、武嶺、蘇花等</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-community">社群</span></div>
-                </div>
-                <a href="https://hiking.biji.co/index.php?q=route&act=search&type=bike" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🗺️</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">內政部國土署 — 自行車道</div>
-                  <div class="src-item-desc">各縣市政府自行車道路線 KML 下載</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-kml">KML</span><span class="tag tag-open">開放授權</span></div>
-                </div>
-                <a href="https://www.cpami.gov.tw/home-page/the-public-service/bike.html" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
+            <div class="ai-status-card" style="padding:0.75rem; background:rgba(255,255,255,0.03); border-radius:8px; border:1px solid var(--border-color); margin-bottom:1rem;">
+              <span style="font-size:0.85rem; color:var(--text-muted);">助理狀態：</span>
+              <strong id="ai-connection-status" style="color: #ef4444; font-size:0.85rem;">未設定 API 金鑰</strong>
             </div>
 
-            <!-- International race routes -->
-            <div class="src-panel hidden" id="src-intl">
-              <div class="src-item">
-                <div class="src-item-icon">🏆</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">CyclingStage.com</div>
-                  <div class="src-item-desc">環法、環義、環西班牙等職業賽完整 GPX，可依年份下載</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-pro">職業賽</span></div>
-                </div>
-                <a href="https://www.cyclingstage.com/tour-de-france-gpx-route/" target="_blank" class="btn-src-open">前往 →</a>
+            <div class="panel-card" style="background: rgba(26, 27, 43, 0.4); border: 1px solid var(--border-color); border-radius: 8px;">
+              <h4 style="margin-top:0;">📝 AI 訓練紀錄與建議</h4>
+              <div id="ai-sidebar-suggestion" style="font-size: 0.85rem; line-height: 1.5; color: var(--text-muted); min-height: 100px; max-height: 350px; overflow-y: auto; padding: 0.25rem;">
+                尚未進行任何騎乘訓練或產生 AI 建議。完成一次騎乘後，此處將顯示 AI 提供的本次訓練結論與下一次強度調整建議。
               </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🌄</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">EuroVelo 歐洲長途路線</div>
-                  <div class="src-item-desc">17 條官方認證長途路線 GPX，ODbL 開放授權</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-open">ODbL</span></div>
-                </div>
-                <a href="https://en.eurovelo.com/ev5" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🗺️</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Waymarked Trails</div>
-                  <div class="src-item-desc">基於 OpenStreetMap，全球路線直接匯出 GPX</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-open">OpenStreetMap</span></div>
-                </div>
-                <a href="https://cycling.waymarkedtrails.org" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🚵</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Ride with GPS — 公開路線庫</div>
-                  <div class="src-item-desc">龐大社群路線庫，可免費瀏覽並下載 GPX</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-community">社群</span></div>
-                </div>
-                <a href="https://ridewithgps.com/routes?search[keywords]=&search[activityType]=cycling" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-            </div>
-
-            <!-- Planning tools -->
-            <div class="src-panel hidden" id="src-tools">
-              <div class="src-item">
-                <div class="src-item-icon">🔍</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Overpass Turbo (OSM 查詢)</div>
-                  <div class="src-item-desc">直接從 OpenStreetMap 資料庫查詢路線並匯出 GPX</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span><span class="tag tag-open">開放原始碼</span></div>
-                </div>
-                <a href="https://overpass-turbo.eu/?w=cycle_route" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🚲</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">cycle.travel</div>
-                  <div class="src-item-desc">基於 OSM 的自行車路線規劃，可匯出完整 GPX 軌跡</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-gpx">GPX</span></div>
-                </div>
-                <a href="https://cycle.travel" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🗻</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">GPS Visualizer (格式轉換)</div>
-                  <div class="src-item-desc">KML / TCX / FIT → GPX 免費線上轉換器</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費</span><span class="tag tag-kml">KML→GPX</span></div>
-                </div>
-                <a href="https://www.gpsvisualizer.com/convert_input" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🧭</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Komoot 路線規劃</div>
-                  <div class="src-item-desc">全球路線規劃，免費版可匯出 GPX</div>
-                  <div class="src-item-tags"><span class="tag tag-free">免費基本版</span><span class="tag tag-gpx">GPX</span></div>
-                </div>
-                <a href="https://www.komoot.com/plan" target="_blank" class="btn-src-open">前往 →</a>
-              </div>
-            </div>
-
-            <!-- Elevation APIs -->
-            <div class="src-panel hidden" id="src-ele">
-              <div class="ele-api-tip">
-                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
-                本 App 已整合 Open-Meteo 高程補充功能。上方切換「自動補充海拔」後，匯入無高程的 GPX 時將自動查詢 API 填入高程資料。
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">📡</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Open-Meteo Elevation API</div>
-                  <div class="src-item-desc">Copernicus DEM 90m 精度，無需 API Key，本 App 預設使用</div>
-                  <div class="src-item-tags"><span class="tag tag-free">完全免費</span><span class="tag tag-open">無需 Key</span><span class="tag tag-integrated">✅ 已整合</span></div>
-                </div>
-                <a href="https://open-meteo.com/en/docs/elevation-api" target="_blank" class="btn-src-open">文件 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🏔️</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">OpenTopoData (SRTM)</div>
-                  <div class="src-item-desc">SRTM 90m 全球高程，開源自建版可用，無需 Key</div>
-                  <div class="src-item-tags"><span class="tag tag-free">完全免費</span><span class="tag tag-open">開源</span></div>
-                </div>
-                <a href="https://www.opentopodata.org" target="_blank" class="btn-src-open">文件 →</a>
-              </div>
-
-              <div class="src-item">
-                <div class="src-item-icon">🌏</div>
-                <div class="src-item-body">
-                  <div class="src-item-title">Open-Elevation API</div>
-                  <div class="src-item-desc">開源高程查詢服務，可自建，完全免費</div>
-                  <div class="src-item-tags"><span class="tag tag-free">完全免費</span><span class="tag tag-open">開源</span></div>
-                </div>
-                <a href="https://api.open-elevation.com/api/v1/lookup?locations=25.04,121.53" target="_blank" class="btn-src-open">測試 →</a>
-              </div>
-
-              <!-- Manual elevation enrich button -->
-              <button class="btn btn-outline btn-block" id="btn-enrich-elevation" style="margin-top:0.75rem;">
-                <svg viewBox="0 0 24 24" width="16" height="16" style="margin-right:6px;vertical-align:middle" fill="currentColor"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-                立即為目前路線補充海拔資料
-              </button>
             </div>
           </div>
         </section>
@@ -743,6 +546,24 @@
               <button class="btn btn-success btn-large btn-block" id="btn-export-tcx">
                 <svg viewBox="0 0 24 24" width="20" height="20" style="vertical-align: middle; margin-right: 6px;"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
                 下載 TCX 訓練檔案
+              </button>
+            </div>
+
+            <!-- Gemini AI Assistant Advice Card -->
+            <div class="ai-recommendation-card">
+              <h4>🤖 Gemini AI 訓練大師分析建議</h4>
+              <div id="ai-summary-warning" class="ai-warning-box">
+                請先在側邊欄「AI 助理」分頁設定 API 金鑰以啟用 AI 建議功能。
+              </div>
+              <div id="ai-summary-loading" class="ai-loading-box hidden">
+                <div class="spinner"></div>
+                <span>Gemini 正在分析您的訓練數據，請稍候...</span>
+              </div>
+              <div id="ai-summary-result" class="ai-result-box hidden" style="max-height: 350px; overflow-y: auto;">
+                <!-- AI report goes here -->
+              </div>
+              <button class="btn btn-primary btn-block" id="btn-generate-ai-summary" style="margin-top: 0.75rem;">
+                ✨ 產生 AI 訓練建議
               </button>
             </div>
           </div>
