@@ -1728,14 +1728,23 @@ ${zoneDistributionText}
   }
 }
 
-// Generic call to Gemini API with fallback models
+// Generic call to Gemini API with fallback models and versions
 async function callGeminiAPI(apiKey, promptText) {
-  const models = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+  const configs = [
+    { version: 'v1beta', model: 'gemini-2.5-flash' },
+    { version: 'v1',     model: 'gemini-2.5-flash' },
+    { version: 'v1beta', model: 'gemini-2.0-flash' },
+    { version: 'v1',     model: 'gemini-2.0-flash' },
+    { version: 'v1beta', model: 'gemini-1.5-flash' },
+    { version: 'v1',     model: 'gemini-1.5-flash' },
+    { version: 'v1beta', model: 'gemini-1.5-pro' },
+    { version: 'v1',     model: 'gemini-1.5-pro' }
+  ];
   let lastError = null;
 
-  for (const model of models) {
+  for (const config of configs) {
     try {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`, {
+      const response = await fetch(`https://generativelanguage.googleapis.com/${config.version}/models/${config.model}:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -1749,19 +1758,19 @@ async function callGeminiAPI(apiKey, promptText) {
         const data = await response.json();
         const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
         if (text) {
-          return { text, model };
+          return { text, model: `${config.model} (${config.version})` };
         }
       } else {
         const errData = await response.json();
         const msg = errData.error?.message || `HTTP error! status: ${response.status}`;
-        lastError = new Error(`${model} 失敗: ${msg}`);
+        lastError = new Error(`${config.model} (${config.version}) 失敗: ${msg}`);
       }
     } catch (err) {
-      lastError = new Error(`${model} 連線錯誤: ${err.message}`);
+      lastError = new Error(`${config.model} (${config.version}) 連線錯誤: ${err.message}`);
     }
   }
 
-  throw lastError || new Error("呼叫所有 Gemini 模型均失敗");
+  throw lastError || new Error("呼叫所有 Gemini 模型及 API 版本均失敗");
 }
 
 // Lightweight Markdown to HTML Converter
