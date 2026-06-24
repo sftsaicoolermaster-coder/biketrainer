@@ -2,6 +2,50 @@
 
 // Predefined workout presets
 export const WORKOUT_PRESETS = {
+  // --- 初階 (Beginner) ---
+  active_recovery: {
+    title: "主動恢復 (30分鐘 輕踩排乳酸)",
+    desc: "極低強度的有氧踩踏，幫助肌肉血液循環並加速乳酸排除。",
+    intervals: [
+      { duration: 300, startPower: 40, endPower: 50, label: "漸進暖身" },
+      { duration: 1200, startPower: 55, endPower: 55, label: "輕鬆排乳酸旋轉" },
+      { duration: 300, startPower: 40, endPower: 40, label: "緩和騎乘" }
+    ]
+  },
+  beginner_endurance: {
+    title: "基礎有氧耐力 (40分鐘 奠定有氧底子)",
+    desc: "穩定的 Zone 2 低強度踩踏，是建立有氧體能基礎與燃脂的最佳選擇。",
+    intervals: [
+      { duration: 600, startPower: 40, endPower: 60, label: "漸進暖身" },
+      { duration: 1500, startPower: 65, endPower: 65, label: "穩定 Zone 2 耐力騎乘" },
+      { duration: 300, startPower: 45, endPower: 45, label: "緩和降溫" }
+    ]
+  },
+
+  // --- 中階 (Intermediate) ---
+  sweet_spot: {
+    title: "甜區心肺訓練 (2 x 10分鐘 Sweet Spot)",
+    desc: "在 88% - 93% FTP 區間進行兩組 10 分鐘的心肺耐力訓練，能有效提升有氧能力且恢復迅速。",
+    intervals: [
+      { duration: 480, startPower: 45, endPower: 75, label: "有氧暖身段" },
+      { duration: 120, startPower: 55, endPower: 55, label: "暖身恢復" },
+      { duration: 600, startPower: 90, endPower: 90, label: "第一組甜區努力 (Zone 3.5)" },
+      { duration: 300, startPower: 50, endPower: 50, label: "中間動態恢復" },
+      { duration: 600, startPower: 90, endPower: 90, label: "第二組甜區努力 (Zone 3.5)" },
+      { duration: 300, startPower: 45, endPower: 45, label: "緩和騎乘" }
+    ]
+  },
+  tempo_intervals: {
+    title: "節奏耐力間歇 (2 x 8分鐘 Zone 3 訓練)",
+    desc: "中等強度的 Zone 3 間歇訓練，能有效提升肌耐力並鍛鍊乳酸閾值前哨能力。",
+    intervals: [
+      { duration: 480, startPower: 45, endPower: 75, label: "有氧暖身" },
+      { duration: 480, startPower: 80, endPower: 80, label: "第一組節奏踩踏 (Zone 3)" },
+      { duration: 240, startPower: 50, endPower: 50, label: "動態恢復" },
+      { duration: 480, startPower: 85, endPower: 85, label: "第二組節奏踩踏 (Zone 3)" },
+      { duration: 300, startPower: 45, endPower: 45, label: "緩和降溫" }
+    ]
+  },
   ftp_test: {
     title: "20分鐘 FTP 測驗 (標準評估)",
     desc: "標準的 FTP 20 分鐘測驗課表。包含高強度暖身與清空排空，再進行 20 分鐘的全力騎乘。",
@@ -19,18 +63,8 @@ export const WORKOUT_PRESETS = {
       { duration: 300, startPower: 45, endPower: 45, label: "緩和騎乘" }
     ]
   },
-  sweet_spot: {
-    title: "甜區心肺訓練 (2 x 10分鐘 Sweet Spot)",
-    desc: "在 88% - 93% FTP 區間進行兩組 10 分鐘的心肺耐力訓練，能有效提升有氧能力且恢復迅速。",
-    intervals: [
-      { duration: 480, startPower: 45, endPower: 75, label: "有氧暖身段" },
-      { duration: 120, startPower: 55, endPower: 55, label: "暖身恢復" },
-      { duration: 600, startPower: 90, endPower: 90, label: "第一組甜區努力 (Zone 3.5)" },
-      { duration: 300, startPower: 50, endPower: 50, label: "中間動態恢復" },
-      { duration: 600, startPower: 90, endPower: 90, label: "第二組甜區努力 (Zone 3.5)" },
-      { duration: 300, startPower: 45, endPower: 45, label: "緩和騎乘" }
-    ]
-  },
+
+  // --- 進階 (Advanced) ---
   vo2_max: {
     title: "VO2 Max 爆發力訓練 (5 x 3分鐘 120%)",
     desc: "高強度間歇訓練 (HIIT)。5 組 3 分鐘高達 120% FTP 的心肺刺激，能顯著提升最大攝氧量。",
@@ -49,13 +83,20 @@ export const WORKOUT_PRESETS = {
       { duration: 420, startPower: 45, endPower: 45, label: "緩和騎乘" }
     ]
   },
-  active_recovery: {
-    title: "主動恢復 (30分鐘 輕踩排乳酸)",
-    desc: "極低強度的有氧踩踏，幫助肌肉血液循環並加速乳酸排除。",
+  anaerobic_capacity: {
+    title: "無氧耐力衝刺 (4 x 1分鐘 150%)",
+    desc: "針對無氧儲備能力設計。在高強度 150% FTP 下衝刺 1 分鐘，並配合完整恢復，拉高最大無氧輸出。",
     intervals: [
-      { duration: 300, startPower: 40, endPower: 50, label: "漸進暖身" },
-      { duration: 1200, startPower: 55, endPower: 55, label: "輕鬆排乳酸旋轉" },
-      { duration: 300, startPower: 40, endPower: 40, label: "緩和騎乘" }
+      { duration: 480, startPower: 45, endPower: 75, label: "暖身與漸進加速" },
+      { duration: 120, startPower: 50, endPower: 50, label: "恢復準備" },
+      { duration: 60, startPower: 150, endPower: 150, label: "💥 第一組無氧衝刺 (150% FTP) 💥" },
+      { duration: 180, startPower: 45, endPower: 45, label: "完整恢復" },
+      { duration: 60, startPower: 150, endPower: 150, label: "💥 第二組無氧衝刺 (150% FTP) 💥" },
+      { duration: 180, startPower: 45, endPower: 45, label: "完整恢復" },
+      { duration: 60, startPower: 150, endPower: 150, label: "💥 第三組無氧衝刺 (150% FTP) 💥" },
+      { duration: 180, startPower: 45, endPower: 45, label: "完整恢復" },
+      { duration: 60, startPower: 150, endPower: 150, label: "💥 第四組無氧衝刺 (150% FTP) 💥" },
+      { duration: 300, startPower: 45, endPower: 45, label: "緩和降溫" }
     ]
   },
   ramp_test: {
