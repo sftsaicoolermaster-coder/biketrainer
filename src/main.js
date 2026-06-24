@@ -249,7 +249,7 @@ function initApp() {
 
   // Gemini API Key Visibility Toggle
   const keyInput = document.getElementById('gemini-api-key');
-  const toggleVisBtn = document.getElementById('btn-toggle-key-visibility');
+  const toggleVisBtn = document.getElementById('btn-toggle-api-key');
   if (toggleVisBtn && keyInput) {
     toggleVisBtn.addEventListener('click', () => {
       if (keyInput.type === 'password') {
@@ -263,25 +263,23 @@ function initApp() {
   }
 
   // Save & Validate Gemini Key
-  const saveKeyBtn = document.getElementById('btn-save-gemini-key');
-  const statusDot = document.getElementById('gemini-status-dot');
-  const statusText = document.getElementById('gemini-status-text');
+  const saveKeyBtn = document.getElementById('btn-save-api-key');
 
   function updateGeminiStatusUI(hasKey, isValidating = false, isValid = false, errMsg = '') {
-    if (!statusDot || !statusText) return;
-    statusDot.className = 'status-dot';
+    const statusText = document.getElementById('ai-connection-status');
+    if (!statusText) return;
     
     if (isValidating) {
-      statusDot.classList.add('dot-orange');
+      statusText.style.color = '#f59e0b'; // Orange
       statusText.textContent = '金鑰驗證中...';
     } else if (isValid) {
-      statusDot.classList.add('dot-green');
+      statusText.style.color = '#10b981'; // Green
       statusText.textContent = '已連線 (Google AI 運行中)';
     } else if (hasKey) {
-      statusDot.classList.add('dot-red');
+      statusText.style.color = '#ef4444'; // Red
       statusText.textContent = errMsg ? `驗證失敗: ${errMsg}` : '已儲存，但未驗證';
     } else {
-      statusDot.classList.add('dot-red');
+      statusText.style.color = '#ef4444'; // Red
       statusText.textContent = '未儲存金鑰';
     }
   }
