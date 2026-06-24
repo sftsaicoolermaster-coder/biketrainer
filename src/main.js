@@ -307,7 +307,7 @@ function initApp() {
       updateGeminiStatusUI(true, true);
 
       try {
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -394,6 +394,12 @@ function initApp() {
 
   // Initial draw
   drawCharts();
+
+  // Bind AI Advice button in Summary Modal
+  const btnGenSummary = document.getElementById('btn-generate-ai-summary');
+  if (btnGenSummary) {
+    btnGenSummary.addEventListener('click', generateAIAdvice);
+  }
 }
 
 // ----------------------------------------------------
@@ -1176,12 +1182,7 @@ function stopRide() {
   // Show summary modal
   calculateSummaryStats();
 
-  const container = document.getElementById('ai-advice-container');
-  if (container) {
-    container.innerHTML = `<button id="btn-generate-ai-advice" class="btn-action">產生 AI 訓練建議</button>`;
-    const btnGen = document.getElementById('btn-generate-ai-advice');
-    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
-  }
+  initSummaryAISection();
 
   el.summaryModal.classList.remove('hidden');
 }
@@ -1551,31 +1552,51 @@ function getGeminiApiKey() {
   return localStorage.getItem('gemini_api_key') || '';
 }
 
+// Initialize AI section in the Summary Modal
+function initSummaryAISection() {
+  const apiKey = getGeminiApiKey();
+  const warningEl = document.getElementById('ai-summary-warning');
+  const loadingEl = document.getElementById('ai-summary-loading');
+  const resultEl = document.getElementById('ai-summary-result');
+  const btnEl = document.getElementById('btn-generate-ai-summary');
+
+  if (warningEl) warningEl.classList.add('hidden');
+  if (loadingEl) loadingEl.classList.add('hidden');
+  if (resultEl) resultEl.classList.add('hidden');
+
+  if (!apiKey) {
+    if (warningEl) {
+      warningEl.innerHTML = `
+        ⚠️ 尚未設定 Gemini API 金鑰！<br>
+        請至左側邊欄「AI 助理」分頁中填寫並儲存您的 API 金鑰。
+      `;
+      warningEl.classList.remove('hidden');
+    }
+    if (btnEl) btnEl.classList.add('hidden');
+  } else {
+    if (btnEl) {
+      btnEl.textContent = '✨ 產生 AI 訓練建議';
+      btnEl.classList.remove('hidden');
+    }
+  }
+}
+
 // Generate Gemini AI Advisor training suggestions
 async function generateAIAdvice() {
   const apiKey = getGeminiApiKey();
-  const container = document.getElementById('ai-advice-container');
-  if (!container) return;
+  const warningEl = document.getElementById('ai-summary-warning');
+  const loadingEl = document.getElementById('ai-summary-loading');
+  const resultEl = document.getElementById('ai-summary-result');
+  const btnEl = document.getElementById('btn-generate-ai-summary');
+  const sidebarSuggestionEl = document.getElementById('ai-sidebar-suggestion');
 
-  if (!apiKey) {
-    container.innerHTML = `
-      <div class="ai-warning-box">
-        ⚠️ 尚未設定 Gemini API 金鑰！<br>
-        請至左側邊欄「AI 助理」分頁中填寫並儲存您的 API 金鑰。
-      </div>
-      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重新產生</button>
-    `;
-    const btnGen = document.getElementById('btn-generate-ai-advice');
-    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
-    return;
-  }
+  if (!apiKey) return;
 
-  container.innerHTML = `
-    <div class="ai-loading-box">
-      <div class="spinner"></div>
-      <span>AI 助理分析中，請稍候...</span>
-    </div>
-  `;
+  // Show loading, hide others
+  if (warningEl) warningEl.classList.add('hidden');
+  if (resultEl) resultEl.classList.add('hidden');
+  if (loadingEl) loadingEl.classList.remove('hidden');
+  if (btnEl) btnEl.classList.add('hidden');
 
   // Compute metrics
   const durationSec = state.rideHistory.length;
@@ -1629,7 +1650,7 @@ ${zoneDistributionText}
 請用繁體中文回覆，使用 Markdown 格式輸出。`;
 
   try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -1658,26 +1679,39 @@ ${zoneDistributionText}
     // Parse markdown to HTML
     const htmlContent = parseMarkdownToHtml(markdown);
     
-    container.innerHTML = `
-      <div class="ai-result-box">
-        ${htmlContent}
-      </div>
-      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重新分析</button>
-    `;
-    
-    const btnGen = document.getElementById('btn-generate-ai-advice');
-    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+    // Hide loading
+    if (loadingEl) loadingEl.classList.add('hidden');
+
+    // Show result inside modal
+    if (resultEl) {
+      resultEl.innerHTML = htmlContent;
+      resultEl.classList.remove('hidden');
+    }
+
+    // Sync to sidebar suggestion box too!
+    if (sidebarSuggestionEl) {
+      sidebarSuggestionEl.innerHTML = htmlContent;
+    }
+
+    // Restore button with reload text
+    if (btnEl) {
+      btnEl.textContent = '✨ 重新分析建議';
+      btnEl.classList.remove('hidden');
+    }
   } catch (err) {
     console.error("Gemini API Error:", err);
-    container.innerHTML = `
-      <div class="ai-warning-box">
+    if (loadingEl) loadingEl.classList.add('hidden');
+    if (warningEl) {
+      warningEl.innerHTML = `
         ❌ 呼叫 Gemini AI 失敗：<br>
-        ${err.message}
-      </div>
-      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重試</button>
-    `;
-    const btnGen = document.getElementById('btn-generate-ai-advice');
-    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+        <span style="font-size: 0.8rem; color: #f87171;">${err.message}</span>
+      `;
+      warningEl.classList.remove('hidden');
+    }
+    if (btnEl) {
+      btnEl.textContent = '✨ 重試產生建議';
+      btnEl.classList.remove('hidden');
+    }
   }
 }
 
