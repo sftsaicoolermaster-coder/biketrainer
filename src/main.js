@@ -71,23 +71,7 @@ const el = {
   btnFtmsInc: document.getElementById('btn-ftms-inc'),
   btnFtmsErg: document.getElementById('btn-ftms-erg'),
   btnFtmsSim: document.getElementById('btn-ftms-sim'),
-
-  // ThinkRider XXPro dedicated controls
-  btnConnectThinkRider: document.getElementById('btn-connect-thinkrider'),
-  btnConnectHrBand: document.getElementById('btn-connect-hrband'),
-  devThinkRider: document.getElementById('dev-thinkrider'),
-  devHrBand: document.getElementById('dev-hrband'),
-  thinkRiderStatusText: document.getElementById('thinkrider-status-text'),
-  hrBandStatusText: document.getElementById('hrband-status-text'),
-  thinkRiderScanRing: document.getElementById('thinkrider-scan-ring'),
-  hrBandScanRing: document.getElementById('hrband-scan-ring'),
-  thinkRiderModePanel: document.getElementById('thinkrider-mode-panel'),
-  valTrTargetW: document.getElementById('val-tr-target-w'),
-  btnTrDec: document.getElementById('btn-tr-dec'),
-  btnTrInc: document.getElementById('btn-tr-inc'),
-  btnTrErg: document.getElementById('btn-tr-erg'),
-  btnTrSim: document.getElementById('btn-tr-sim'),
-  
+  // Workouts Panel
   // Workouts Panel
   presetSelect: document.getElementById('workout-preset-select'),
   workoutDropzone: document.getElementById('workout-file-dropzone'),
@@ -188,21 +172,167 @@ function getPowerZoneIndex(power, ftp) {
 // UI TABS & INITIALIZATION
 // ----------------------------------------------------
 function initApp() {
-  // Bind simple user values
-  state.ftp = parseInt(el.ftpInput.value) || 200;
-  state.weight = parseInt(el.weightInput.value) || 70;
+  // Load settings from localStorage
+  const savedFtp = localStorage.getItem('ftp');
+  const savedWeight = localStorage.getItem('weight');
+  const savedHeight = localStorage.getItem('height');
+  
+  if (savedFtp) {
+    state.ftp = parseInt(savedFtp);
+    el.ftpInput.value = savedFtp;
+  } else {
+    state.ftp = parseInt(el.ftpInput.value) || 200;
+  }
+
+  // iOS/iPadOS browser detection
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const iosWarning = document.getElementById('ios-ble-warning');
+  if (iosWarning) {
+    if (isIOS) {
+      iosWarning.classList.remove('hidden');
+    } else {
+      iosWarning.classList.add('hidden');
+    }
+  }
+
+  if (savedWeight) {
+    state.weight = parseInt(savedWeight);
+    el.weightInput.value = savedWeight;
+  } else {
+    state.weight = parseInt(el.weightInput.value) || 70;
+  }
+
+  const heightInput = document.getElementById('height-input');
+  if (heightInput) {
+    if (savedHeight) {
+      state.height = parseInt(savedHeight);
+      heightInput.value = savedHeight;
+    } else {
+      state.height = parseInt(heightInput.value) || 175;
+    }
+    heightInput.addEventListener('change', () => {
+      state.height = parseInt(heightInput.value) || 175;
+      localStorage.setItem('height', state.height);
+    });
+  } else {
+    state.height = 175;
+  }
   
   el.ftpInput.addEventListener('change', () => {
     state.ftp = parseInt(el.ftpInput.value) || 200;
+    localStorage.setItem('ftp', state.ftp);
     if (state.currentWorkout) {
       state.currentWorkout.updateFTP(state.ftp);
       updateWorkoutPreview(state.currentWorkout);
+      drawCharts();
     }
   });
 
   el.weightInput.addEventListener('change', () => {
     state.weight = parseInt(el.weightInput.value) || 70;
+    localStorage.setItem('weight', state.weight);
   });
+
+  // Workout intensity scale selector
+  const intensitySelect = document.getElementById('workout-intensity-scale');
+  if (intensitySelect) {
+    intensitySelect.addEventListener('change', () => {
+      const scale = parseFloat(intensitySelect.value) || 1.0;
+      if (state.currentWorkout) {
+        state.currentWorkout.intensityScale = scale;
+        updateWorkoutPreview(state.currentWorkout);
+        drawCharts();
+      }
+    });
+  }
+
+  // Gemini API Key Visibility Toggle
+  const keyInput = document.getElementById('gemini-api-key');
+  const toggleVisBtn = document.getElementById('btn-toggle-key-visibility');
+  if (toggleVisBtn && keyInput) {
+    toggleVisBtn.addEventListener('click', () => {
+      if (keyInput.type === 'password') {
+        keyInput.type = 'text';
+        toggleVisBtn.textContent = '隱藏';
+      } else {
+        keyInput.type = 'password';
+        toggleVisBtn.textContent = '顯示';
+      }
+    });
+  }
+
+  // Save & Validate Gemini Key
+  const saveKeyBtn = document.getElementById('btn-save-gemini-key');
+  const statusDot = document.getElementById('gemini-status-dot');
+  const statusText = document.getElementById('gemini-status-text');
+
+  function updateGeminiStatusUI(hasKey, isValidating = false, isValid = false, errMsg = '') {
+    if (!statusDot || !statusText) return;
+    statusDot.className = 'status-dot';
+    
+    if (isValidating) {
+      statusDot.classList.add('dot-orange');
+      statusText.textContent = '金鑰驗證中...';
+    } else if (isValid) {
+      statusDot.classList.add('dot-green');
+      statusText.textContent = '已連線 (Google AI 運行中)';
+    } else if (hasKey) {
+      statusDot.classList.add('dot-red');
+      statusText.textContent = errMsg ? `驗證失敗: ${errMsg}` : '已儲存，但未驗證';
+    } else {
+      statusDot.classList.add('dot-red');
+      statusText.textContent = '未儲存金鑰';
+    }
+  }
+
+  const savedKey = localStorage.getItem('gemini_api_key');
+  if (savedKey && keyInput) {
+    keyInput.value = savedKey;
+    updateGeminiStatusUI(true, false, true);
+  } else {
+    updateGeminiStatusUI(false);
+  }
+
+  if (saveKeyBtn && keyInput) {
+    saveKeyBtn.addEventListener('click', async () => {
+      const key = keyInput.value.trim();
+      if (!key) {
+        localStorage.removeItem('gemini_api_key');
+        updateGeminiStatusUI(false);
+        alert('已移除金鑰。');
+        return;
+      }
+
+      updateGeminiStatusUI(true, true);
+
+      try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${key}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: 'Hello' }] }]
+          })
+        });
+
+        if (response.ok) {
+          localStorage.setItem('gemini_api_key', key);
+          updateGeminiStatusUI(true, false, true);
+          alert('Gemini API 金鑰驗證成功並已儲存！');
+        } else {
+          const errData = await response.json();
+          const msg = errData.error?.message || '無效的金鑰';
+          updateGeminiStatusUI(true, false, false, msg);
+          alert(`驗證失敗: ${msg}`);
+        }
+      } catch (err) {
+        updateGeminiStatusUI(true, false, false, err.message);
+        alert(`連線錯誤: ${err.message}`);
+      }
+    });
+  }
 
   // Sound Settings
   audioManager.setVoiceEnabled(el.voiceToggle.checked);
@@ -270,52 +400,6 @@ function initApp() {
 // BLE CONNECTIONS & telemetry BINDINGS
 // ----------------------------------------------------
 function setupBLEListeners() {
-  // --- ThinkRider XXPro Dedicated Buttons ---
-  let trTargetPower = 200;
-  let trMode = 'erg'; // 'erg' | 'sim'
-
-  el.btnConnectThinkRider.addEventListener('click', async () => {
-    if (ble.devices.thinkrider) {
-      ble.disconnectThinkRider();
-    } else {
-      await ble.connectThinkRider();
-      if (ble.devices.thinkrider) {
-        el.thinkRiderModePanel.classList.remove('hidden');
-        el.valTrTargetW.textContent = trTargetPower;
-      }
-    }
-  });
-
-  el.btnConnectHrBand.addEventListener('click', async () => {
-    if (ble.devices.hrband) {
-      ble.disconnectHRBand();
-    } else {
-      await ble.connectHRBand();
-    }
-  });
-
-  // ThinkRider ERG / SIM mode toggle
-  el.btnTrErg.addEventListener('click', () => {
-    trMode = 'erg';
-    el.btnTrErg.classList.add('active');
-    el.btnTrSim.classList.remove('active');
-  });
-  el.btnTrSim.addEventListener('click', () => {
-    trMode = 'sim';
-    el.btnTrSim.classList.add('active');
-    el.btnTrErg.classList.remove('active');
-  });
-  el.btnTrDec.addEventListener('click', () => {
-    trTargetPower = Math.max(50, trTargetPower - 10);
-    el.valTrTargetW.textContent = trTargetPower;
-    if (trMode === 'erg' && ble.devices.thinkrider) ble.setThinkRiderTargetPower(trTargetPower);
-  });
-  el.btnTrInc.addEventListener('click', () => {
-    trTargetPower = Math.min(800, trTargetPower + 10);
-    el.valTrTargetW.textContent = trTargetPower;
-    if (trMode === 'erg' && ble.devices.thinkrider) ble.setThinkRiderTargetPower(trTargetPower);
-  });
-
   // Bind UI Buttons to Bluetooth Connection triggers
   el.btnConnectPower.addEventListener('click', async () => {
     if (ble.devices.power || ble.devices.ftms) {
@@ -354,19 +438,9 @@ function setupBLEListeners() {
 
   // Bluetooth Status Visual Updates
   ble.onStatusChange = (deviceKey, status) => {
-    let devEl, btnEl, statusTextEl, scanRingEl;
+    let devEl, btnEl, statusTextEl;
 
-    if (deviceKey === 'thinkrider') {
-      devEl = el.devThinkRider;
-      btnEl = el.btnConnectThinkRider;
-      statusTextEl = el.thinkRiderStatusText;
-      scanRingEl = el.thinkRiderScanRing;
-    } else if (deviceKey === 'hrband') {
-      devEl = el.devHrBand;
-      btnEl = el.btnConnectHrBand;
-      statusTextEl = el.hrBandStatusText;
-      scanRingEl = el.hrBandScanRing;
-    } else if (deviceKey === 'power' || deviceKey === 'ftms') {
+    if (deviceKey === 'power' || deviceKey === 'ftms') {
       devEl = el.devPower;
       btnEl = el.btnConnectPower;
       statusTextEl = devEl ? devEl.querySelector('.device-status-text') : null;
@@ -384,38 +458,27 @@ function setupBLEListeners() {
 
     // Reset classes
     devEl.classList.remove('status-disconnected', 'status-searching', 'status-connected');
-    if (scanRingEl) scanRingEl.classList.add('hidden');
     
     if (status === 'connected') {
       devEl.classList.add('status-connected');
       if (statusTextEl) statusTextEl.textContent = '已連線 ✓';
       else devEl.querySelector('.device-status-text').textContent = '已連線';
       btnEl.textContent = '中斷連線';
-      btnEl.classList.remove('btn-thinkrider');
-      btnEl.classList.add('btn-connected-tr');
-
-      if (deviceKey === 'thinkrider') {
-        el.thinkRiderModePanel.classList.remove('hidden');
-      }
     } else if (status === 'searching') {
       devEl.classList.add('status-searching');
       if (statusTextEl) statusTextEl.textContent = '掃描中...';
       else devEl.querySelector('.device-status-text').textContent = '配對搜尋中...';
       btnEl.textContent = '取消';
-      if (scanRingEl) scanRingEl.classList.remove('hidden');
     } else {
       devEl.classList.add('status-disconnected');
       if (statusTextEl) statusTextEl.textContent = '未連線';
       else devEl.querySelector('.device-status-text').textContent = '未連線';
-      btnEl.textContent = deviceKey === 'thinkrider' || deviceKey === 'hrband' ? '🔵 搜尋配對' : '連線';
-      btnEl.classList.add(deviceKey === 'thinkrider' || deviceKey === 'hrband' ? 'btn-thinkrider' : 'btn-connect');
+      btnEl.textContent = '連線';
+      btnEl.classList.add('btn-connect');
       btnEl.classList.remove('btn-connected-tr');
 
       if (deviceKey === 'power') {
         el.trainerModePanel.classList.add('hidden');
-      }
-      if (deviceKey === 'thinkrider') {
-        el.thinkRiderModePanel.classList.add('hidden');
       }
     }
   };
@@ -581,6 +644,10 @@ function loadPresetWorkout() {
   const rawData = WORKOUT_PRESETS[presetKey];
   if (rawData) {
     const player = new WorkoutPlayer(rawData, state.ftp);
+    const intensitySelect = document.getElementById('workout-intensity-scale');
+    if (intensitySelect) {
+      player.intensityScale = parseFloat(intensitySelect.value) || 1.0;
+    }
     state.currentWorkout = player;
     updateWorkoutPreview(player);
     drawCharts();
@@ -600,6 +667,10 @@ async function handleWorkoutFile(file) {
     }
     
     state.currentWorkout = new WorkoutPlayer(workoutData, state.ftp);
+    const intensitySelect = document.getElementById('workout-intensity-scale');
+    if (intensitySelect) {
+      state.currentWorkout.intensityScale = parseFloat(intensitySelect.value) || 1.0;
+    }
     updateWorkoutPreview(state.currentWorkout);
     drawCharts();
     
@@ -618,13 +689,14 @@ function updateWorkoutPreview(player) {
   el.previewDuration.textContent = `${min} 分 ${sec} 秒`;
   
   // Calculate estimates
-  const est = WorkoutPlayer.estimateTSSandIF(player.intervals, player.ftp);
+  const scale = player.intensityScale || 1.0;
+  const est = WorkoutPlayer.estimateTSSandIF(player.intervals, player.ftp, scale);
   el.previewTss.textContent = est.tss;
   el.previewIf.textContent = est.intensityFactor;
   
   let maxP = 0;
   player.intervals.forEach(inv => maxP = Math.max(maxP, inv.startPower, inv.endPower));
-  el.previewMaxP.textContent = `${maxP}% FTP`;
+  el.previewMaxP.textContent = `${Math.round(maxP * scale)}% FTP`;
   
   // Render timeline mini-bar
   renderTimelineBar(player);
@@ -633,15 +705,16 @@ function updateWorkoutPreview(player) {
 // Draw a simple CSS flex blocks preview of workout
 function renderTimelineBar(player) {
   el.previewTimeline.innerHTML = '';
+  const scale = player.intensityScale || 1.0;
   player.intervals.forEach(inv => {
     const block = document.createElement('div');
     const widthPct = (inv.duration / player.totalDuration) * 100;
-    const avgPct = (inv.startPower + inv.endPower) / 2;
+    const avgPct = ((inv.startPower + inv.endPower) / 2) * scale;
     
     block.style.width = `${widthPct}%`;
     block.style.height = '100%';
     block.style.backgroundColor = getZoneCSSColor(avgPct);
-    block.title = `${inv.label}: ${inv.startPower}% - ${inv.endPower}% FTP, ${Math.floor(inv.duration/60)}m`;
+    block.title = `${inv.label}: ${Math.round(inv.startPower * scale)}% - ${Math.round(inv.endPower * scale)}% FTP, ${Math.floor(inv.duration/60)}m`;
     
     el.previewTimeline.appendChild(block);
   });
@@ -933,11 +1006,7 @@ function rideTick() {
       ble.setTargetPower(targetPower);
       el.valFtmsTargetW.textContent = targetPower;
     }
-    // ThinkRider XXPro ERG mode sync
-    if (ble.devices.thinkrider) {
-      ble.setThinkRiderTargetPower(targetPower);
-      el.valTrTargetW.textContent = targetPower;
-    }
+
     
     // Sync to simulator generator
     if (ble.isMocking) {
@@ -994,10 +1063,7 @@ function rideTick() {
     if (ble.devices.ftms && !state.currentWorkout) {
       ble.setIndoorBikeSimulation(state.currentGradePct, state.weight);
     }
-    // ThinkRider XXPro SIM slope sync
-    if (ble.devices.thinkrider && !state.currentWorkout) {
-      ble.setThinkRiderSimulation(state.currentGradePct);
-    }
+
     
     // Update mini profile marker
     gpxEngine.drawElevationProfile(el.gpxCanvas, state.currentRoute, distMeters);
@@ -1098,6 +1164,14 @@ function stopRide() {
 
   // Show summary modal
   calculateSummaryStats();
+
+  const container = document.getElementById('ai-advice-container');
+  if (container) {
+    container.innerHTML = `<button id="btn-generate-ai-advice" class="btn-action">產生 AI 訓練建議</button>`;
+    const btnGen = document.getElementById('btn-generate-ai-advice');
+    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+  }
+
   el.summaryModal.classList.remove('hidden');
 }
 
@@ -1460,4 +1534,174 @@ if (btnCloseScenicBottom) btnCloseScenicBottom.addEventListener('click', closeSc
 
 // Initialize application on load
 window.addEventListener('DOMContentLoaded', initApp);
+
+// Retrieve stored API key
+function getGeminiApiKey() {
+  return localStorage.getItem('gemini_api_key') || '';
+}
+
+// Generate Gemini AI Advisor training suggestions
+async function generateAIAdvice() {
+  const apiKey = getGeminiApiKey();
+  const container = document.getElementById('ai-advice-container');
+  if (!container) return;
+
+  if (!apiKey) {
+    container.innerHTML = `
+      <div class="ai-warning-box">
+        ⚠️ 尚未設定 Gemini API 金鑰！<br>
+        請至左側邊欄「AI 助理」分頁中填寫並儲存您的 API 金鑰。
+      </div>
+      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重新產生</button>
+    `;
+    const btnGen = document.getElementById('btn-generate-ai-advice');
+    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+    return;
+  }
+
+  container.innerHTML = `
+    <div class="ai-loading-box">
+      <div class="spinner"></div>
+      <span>AI 助理分析中，請稍候...</span>
+    </div>
+  `;
+
+  // Compute metrics
+  const durationSec = state.rideHistory.length;
+  const avgPower = state.avgPowerTicks > 0 ? Math.round(state.avgPowerSum / state.avgPowerTicks) : 0;
+  const maxPower = state.maxPower || 0;
+  const avgHr = state.avgHrTicks > 0 ? Math.round(state.avgHrSum / state.avgHrTicks) : 0;
+  const maxHr = state.maxHeartRate || 0;
+  const distKm = state.currentDistanceKm.toFixed(2);
+  const ftp = state.ftp;
+  const weight = state.weight;
+  const height = state.height || 175;
+  const intensitySelect = document.getElementById('workout-intensity-scale');
+  const intensityScale = intensitySelect ? intensitySelect.value : '1.0';
+
+  // Compute zones time
+  const zoneSeconds = [0, 0, 0, 0, 0, 0, 0];
+  state.rideHistory.forEach(pt => {
+    const idx = getPowerZoneIndex(pt.power, state.ftp);
+    zoneSeconds[idx]++;
+  });
+  
+  const zoneDistributionText = ZONE_METADATA.map((meta, idx) => {
+    return `- ${meta.name}: ${formatDuration(zoneSeconds[idx])}`;
+  }).join('\n');
+
+  // Build the prompt
+  const prompt = `您是專業的自行車訓練智慧教練。請針對以下踩踏訓練數據進行分析：
+
+【使用者基本資料】
+- 身高：${height} 公分
+- 體重：${weight} 公斤
+- FTP 閥值功率：${ftp} 瓦
+- 課表設定強度百分比：${Math.round(parseFloat(intensityScale) * 100)}%
+
+【本次騎乘訓練數據】
+- 訓練時間：${formatDuration(durationSec)}
+- 總騎乘距離：${distKm} 公里
+- 平均功率：${avgPower} 瓦
+- 最大功率：${maxPower} 瓦
+- 平均心率：${avgHr} BPM
+- 最大心率：${maxHr} BPM
+
+【各功率區間分佈】
+${zoneDistributionText}
+
+請以專業自行車教練的視角，為使用者提供：
+1. 本次訓練的整體結論與評估（包含對比其身高體重與 FTP，分析強度是否合適）。
+2. 詳細的心率與功率數據分析（如心率與功率的對應關係，是否過高或過低）。
+3. 針對下一次訓練設定的具體建議（例如是否需要調整 FTP 功率極限值、或是下次是否可以使用 6 成或 8 成強度課表）。
+
+請用繁體中文回覆，使用 Markdown 格式輸出。`;
+
+  try {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: prompt
+              }
+            ]
+          }
+        ]
+      })
+    });
+
+    if (!response.ok) {
+      const errData = await response.json();
+      throw new Error(errData.error?.message || `HTTP error! status: ${response.status}`);
+    }
+
+    const resData = await response.json();
+    const markdown = resData.candidates?.[0]?.content?.parts?.[0]?.text || '無法產生建議，請稍後重試。';
+    
+    // Parse markdown to HTML
+    const htmlContent = parseMarkdownToHtml(markdown);
+    
+    container.innerHTML = `
+      <div class="ai-result-box">
+        ${htmlContent}
+      </div>
+      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重新分析</button>
+    `;
+    
+    const btnGen = document.getElementById('btn-generate-ai-advice');
+    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+  } catch (err) {
+    console.error("Gemini API Error:", err);
+    container.innerHTML = `
+      <div class="ai-warning-box">
+        ❌ 呼叫 Gemini AI 失敗：<br>
+        ${err.message}
+      </div>
+      <button id="btn-generate-ai-advice" class="btn-action" style="margin-top: 10px;">重試</button>
+    `;
+    const btnGen = document.getElementById('btn-generate-ai-advice');
+    if (btnGen) btnGen.addEventListener('click', generateAIAdvice);
+  }
+}
+
+// Lightweight Markdown to HTML Converter
+function parseMarkdownToHtml(md) {
+  let html = md;
+  
+  // Convert headers
+  html = html.replace(/^### (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^#### (.*$)/gim, '<h4>$1</h4>');
+  html = html.replace(/^## (.*$)/gim, '<h3>$1</h3>');
+  html = html.replace(/^# (.*$)/gim, '<h3>$1</h3>');
+  
+  // Bold
+  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+  
+  // Unordered list items
+  html = html.replace(/^\s*[-*]\s+(.*)$/gim, '<li>$1</li>');
+  
+  // Wrap contiguous lists
+  html = html.replace(/(<li>.*<\/li>)/g, '<ul>$1</ul>');
+  html = html.replace(/<\/ul>\s*<ul>/g, '');
+  
+  // Split into paragraphs
+  const paragraphs = html.split(/\n\s*\n/);
+  html = paragraphs.map(p => {
+    p = p.trim();
+    if (!p) return '';
+    if (p.startsWith('<h') || p.startsWith('<ul') || p.startsWith('<li')) {
+      return p;
+    }
+    return `<p>${p.replace(/\n/g, '<br>')}</p>`;
+  }).filter(p => p).join('\n');
+  
+  return html;
+}
+
 

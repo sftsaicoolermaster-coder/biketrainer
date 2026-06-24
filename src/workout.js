@@ -95,6 +95,7 @@ export class WorkoutPlayer {
     this.desc = workoutData.desc || "無說明";
     this.intervals = workoutData.intervals || [];
     this.ftp = userFTP;
+    this.intensityScale = 1.0;
     
     // Player State
     this.currentIntervalIndex = 0;
@@ -117,8 +118,8 @@ export class WorkoutPlayer {
     if (!interval) return 0;
 
     const progress = this.elapsedInCurrentInterval / interval.duration;
-    const startW = (interval.startPower / 100) * this.ftp;
-    const endW = (interval.endPower / 100) * this.ftp;
+    const startW = (interval.startPower / 100) * this.ftp * this.intensityScale;
+    const endW = (interval.endPower / 100) * this.ftp * this.intensityScale;
     
     return Math.round(startW + (endW - startW) * progress);
   }
@@ -203,14 +204,14 @@ export class WorkoutPlayer {
   }
 
   // Calculate workout statistics estimates
-  static estimateTSSandIF(intervals, ftp) {
+  static estimateTSSandIF(intervals, ftp, intensityScale = 1.0) {
     let totalDuration = 0;
     let npSumPower = 0;
     
     intervals.forEach(interval => {
       totalDuration += interval.duration;
       // Estimate NP using average of start and end power as a rough estimate
-      const avgPowerPct = (interval.startPower + interval.endPower) / 200;
+      const avgPowerPct = ((interval.startPower + interval.endPower) / 200) * intensityScale;
       npSumPower += Math.pow(avgPowerPct * ftp, 4) * interval.duration;
     });
 

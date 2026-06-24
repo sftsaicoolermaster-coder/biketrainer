@@ -47,8 +47,9 @@ export const chartEngine = {
 
     // Find max power in the workout to set Y-axis scale (min 150% of FTP or max interval power)
     let maxPct = 130;
+    const scale = player.intensityScale || 1.0;
     intervals.forEach(inv => {
-      maxPct = Math.max(maxPct, inv.startPower, inv.endPower);
+      maxPct = Math.max(maxPct, inv.startPower * scale, inv.endPower * scale);
     });
     // Add some headroom
     maxPct += 20;
@@ -80,8 +81,8 @@ export const chartEngine = {
     intervals.forEach(inv => {
       const startX = getX(currentX);
       const endX = getX(currentX + inv.duration);
-      const startY = getY(inv.startPower);
-      const endY = getY(inv.endPower);
+      const startY = getY(inv.startPower * scale);
+      const endY = getY(inv.endPower * scale);
       
       // Draw colored interval box
       ctx.beginPath();
@@ -91,7 +92,7 @@ export const chartEngine = {
       ctx.lineTo(endX, h - padBottom);
       ctx.closePath();
       
-      const avgPct = (inv.startPower + inv.endPower) / 2;
+      const avgPct = ((inv.startPower + inv.endPower) / 2) * scale;
       ctx.fillStyle = getZoneColor(avgPct);
       ctx.fill();
       

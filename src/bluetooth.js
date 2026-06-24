@@ -25,8 +25,8 @@ const UUIDS = {
 
 export class BLEManager {
   constructor() {
-    this.devices = { power: null, hr: null, cadence: null, ftms: null, thinkrider: null, hrband: null };
-    this.characteristics = { ftmsControl: null, thinkRiderControl: null };
+    this.devices = { power: null, hr: null, cadence: null, ftms: null };
+    this.characteristics = { ftmsControl: null };
     
     // Callback handlers
     this.onPowerUpdate = null;
@@ -247,163 +247,6 @@ export class BLEManager {
     }
   }
 
-  // --- THINKRIDER XXPRO DEDICATED CONNECTION ---
-  // Uses namePrefix filter to exclusively scan for ThinkRider devices.
-  // Falls back to FTMS protocol so all existing ERG/SIM logic works.
-  async connectThinkRider() {
-    this.setStatus('thinkrider', 'searching');
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        filters: [
-          { namePrefix: 'ThinkRider' },
-          { namePrefix: 'THINKRIDER' },
-          { namePrefix: 'XXPRO' }
-        ],
-        optionalServices: [
-          UUIDS.FTMS.service,
-          UUIDS.POWER.service,
-          UUIDS.CADENCE.service
-        ]
-      });
-
-      const server = await device.gatt.connect();
-      this.devices.thinkrider = device;
-
-      // ThinkRider advertises FTMS — use the same service
-      let service;
-      try {
-        service = await server.getPrimaryService(UUIDS.FTMS.service);
-      } catch {
-        // Some firmware versions only expose cycling power
-        service = await server.getPrimaryService(UUIDS.POWER.service);
-        const powerChar = await service.getCharacteristic(UUIDS.POWER.measurement);
-        powerChar.addEventListener('characteristicvaluechanged', (e) => {
-          const val = e.target.value;
-          const power = val.getInt16(2, true);
-          if (this.onPowerUpdate) this.onPowerUpdate(power);
-        });
-        await powerChar.startNotifications();
-        device.addEventListener('gattserverdisconnected', () => {
-          this.devices.thinkrider = null;
-          this.characteristics.thinkRiderControl = null;
-          this.setStatus('thinkrider', 'disconnected');
-        });
-        this.setStatus('thinkrider', 'connected');
-        return true;
-      }
-
-      // --- FTMS path ---
-      // Subscribe to Indoor Bike Data for telemetry
-      try {
-        const dataChar = await service.getCharacteristic(UUIDS.FTMS.indoor_bike_data);
-        dataChar.addEventListener('characteristicvaluechanged', (e) => {
-          this.parseFTMSBikeData(e.target.value);
-        });
-        await dataChar.startNotifications();
-      } catch (err) {
-        console.warn('ThinkRider: Indoor Bike Data char not found:', err);
-      }
-
-      // Get FTMS Control Point for ERG / SIM commands
-      try {
-        this.characteristics.thinkRiderControl = await service.getCharacteristic(UUIDS.FTMS.control_point);
-        await this.characteristics.thinkRiderControl.startNotifications();
-        // Request control
-        await this.characteristics.thinkRiderControl.writeValue(new Uint8Array([0x00]));
-      } catch (err) {
-        console.warn('ThinkRider: Control point not available:', err);
-      }
-
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.thinkrider = null;
-        this.characteristics.thinkRiderControl = null;
-        this.setStatus('thinkrider', 'disconnected');
-      });
-
-      this.setStatus('thinkrider', 'connected');
-      return true;
-    } catch (err) {
-      console.error('ThinkRider BLE Error:', err);
-      this.setStatus('thinkrider', 'disconnected');
-      return false;
-    }
-  }
-
-  // Send ERG target power to ThinkRider XXPro
-  async setThinkRiderTargetPower(watts) {
-    const ctrl = this.characteristics.thinkRiderControl || this.characteristics.ftmsControl;
-    if (!ctrl) return;
-    try {
-      const data = new Uint8Array([0x05, watts & 0xFF, (watts >> 8) & 0xFF]);
-      await ctrl.writeValue(data);
-    } catch (err) {
-      console.error('ThinkRider ERG write failed:', err);
-    }
-  }
-
-  // Send SIM slope to ThinkRider XXPro
-  async setThinkRiderSimulation(slopeGrade) {
-    const ctrl = this.characteristics.thinkRiderControl || this.characteristics.ftmsControl;
-    if (!ctrl) return;
-    try {
-      const gradeVal = Math.round(slopeGrade * 100);
-      const data = new Uint8Array([
-        0x11,
-        0x00, 0x00,
-        gradeVal & 0xFF, (gradeVal >> 8) & 0xFF,
-        40, 51
-      ]);
-      await ctrl.writeValue(data);
-    } catch (err) {
-      console.error('ThinkRider SIM write failed:', err);
-    }
-  }
-
-  // --- DEDICATED HR BAND (BLE Heart Rate) CONNECTION ---
-  // Allows connecting a stand-alone or ThinkRider-bundled HR belt separately.
-  async connectHRBand() {
-    this.setStatus('hrband', 'searching');
-    try {
-      const device = await navigator.bluetooth.requestDevice({
-        // Try ThinkRider HR belt first, then fall back to any HR device
-        filters: [
-          { namePrefix: 'ThinkRider' },
-          { namePrefix: 'HR' },
-          { namePrefix: 'Heart' },
-          { services: [UUIDS.HR.service] }
-        ],
-        optionalServices: [UUIDS.HR.service]
-      });
-
-      const server = await device.gatt.connect();
-      const service = await server.getPrimaryService(UUIDS.HR.service);
-      const characteristic = await service.getCharacteristic(UUIDS.HR.measurement);
-
-      this.devices.hrband = device;
-
-      characteristic.addEventListener('characteristicvaluechanged', (e) => {
-        const val = e.target.value;
-        const flags = val.getUint8(0);
-        const is16Bit = flags & 0x01;
-        const hr = is16Bit ? val.getUint16(1, true) : val.getUint8(1);
-        if (this.onHeartRateUpdate) this.onHeartRateUpdate(hr);
-      });
-
-      await characteristic.startNotifications();
-
-      device.addEventListener('gattserverdisconnected', () => {
-        this.devices.hrband = null;
-        this.setStatus('hrband', 'disconnected');
-      });
-
-      this.setStatus('hrband', 'connected');
-      return true;
-    } catch (err) {
-      console.error('HR Band BLE Error:', err);
-      this.setStatus('hrband', 'disconnected');
-      return false;
-    }
-  }
 
   // --- FTMS / SMART TRAINER CONTROL CONNECTION ---
   async connectFTMS() {
@@ -630,26 +473,6 @@ export class BLEManager {
       this.setStatus(key, 'disconnected');
     });
     this.characteristics.ftmsControl = null;
-    this.characteristics.thinkRiderControl = null;
-  }
-
-  // Disconnect only ThinkRider
-  disconnectThinkRider() {
-    if (this.devices.thinkrider && this.devices.thinkrider.gatt.connected) {
-      this.devices.thinkrider.gatt.disconnect();
-    }
-    this.devices.thinkrider = null;
-    this.characteristics.thinkRiderControl = null;
-    this.setStatus('thinkrider', 'disconnected');
-  }
-
-  // Disconnect only HR band
-  disconnectHRBand() {
-    if (this.devices.hrband && this.devices.hrband.gatt.connected) {
-      this.devices.hrband.gatt.disconnect();
-    }
-    this.devices.hrband = null;
-    this.setStatus('hrband', 'disconnected');
   }
 }
 
